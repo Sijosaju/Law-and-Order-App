@@ -83,20 +83,29 @@ Future<String> _getAIResponseFromBackend(String userMessage) async {
   final url = Uri.parse("https://law-and-order-app.onrender.com/chat");
 
   try {
+    print("Sending request to: $url"); // Debug log
+    print("Message: $userMessage"); // Debug log
+    
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({"message": userMessage}),
     );
 
+    print("Response status: ${response.statusCode}"); // Debug log
+    print("Response body: ${response.body}"); // Debug log
+
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return data["reply"] ?? "Sorry, I couldn't understand your question.";
+    } else if (response.statusCode == 404) {
+      return "⚠️ Chat endpoint not found. Backend might be sleeping or misconfigured.";
     } else {
-      return "⚠️ Server error: ${response.statusCode}";
+      return "⚠️ Server error: ${response.statusCode}\nDetails: ${response.body}";
     }
   } catch (e) {
-    return "⚠️ Failed to connect. Please check your internet.";
+    print("Network error: $e"); // Debug log
+    return "⚠️ Failed to connect: $e\nPlease check your internet connection.";
   }
 }
 
