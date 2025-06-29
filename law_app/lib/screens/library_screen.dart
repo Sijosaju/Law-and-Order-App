@@ -28,25 +28,192 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
     fetchData();
   }
 
-  Future<void> fetchData() async {
-    const String baseUrl = "https://law-and-order-app.onrender.com";
+// Replace your fetchData() method with this improved version
+// Replace your fetchData() method with this improved version
+Future<void> fetchData() async {
+  const String baseUrl = "https://law-and-order-app.onrender.com";
+  
+  print("🚀 Starting data fetch from: $baseUrl");
 
-    try {
-      final actResponse = await http.get(Uri.parse("$baseUrl/acts"));
-      final articleResponse = await http.get(Uri.parse("$baseUrl/articles"));
-      final caseResponse = await http.get(Uri.parse("$baseUrl/cases"));
+  try {
+    // First, test if the server is reachable
+    print("📡 Testing server connectivity...");
+    
+    final healthResponse = await http.get(
+      Uri.parse("$baseUrl/health"),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    ).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        throw Exception('Server health check timeout - server may be sleeping');
+      },
+    );
+    
+    print("✅ Server health status: ${healthResponse.statusCode}");
+    
+    if (healthResponse.statusCode != 200) {
+      throw Exception('Server is not healthy: ${healthResponse.statusCode}');
+    }
 
-      setState(() {
-        acts = json.decode(actResponse.body);
-        articles = json.decode(articleResponse.body);
-        cases = json.decode(caseResponse.body);
-        isLoading = false;
-      });
-    } catch (e) {
-      debugPrint("Fetch error: $e");
-      setState(() => isLoading = false);
+    // Now fetch the actual data with proper error handling
+    print("📚 Fetching acts, articles, and cases...");
+    
+    final futures = await Future.wait([
+      _fetchWithRetry("$baseUrl/acts", "acts"),
+      _fetchWithRetry("$baseUrl/articles", "articles"), 
+      _fetchWithRetry("$baseUrl/cases", "cases"),
+    ]);
+
+    final actsResponse = futures[0];
+    final articlesResponse = futures[1]; 
+    final casesResponse = futures[2];
+
+    // Parse responses
+    List<dynamic> fetchedActs = [];
+    List<dynamic> fetchedArticles = [];
+    List<dynamic> fetchedCases = [];
+
+    if (actsResponse.statusCode == 200) {
+      try {
+        final actsData = json.decode(actsResponse.body);
+        if (actsData is List) {
+          fetchedActs = actsData;
+          print("✅ Loaded ${fetchedActs.length} acts");
+        } else if (actsData is Map && actsData.containsKey('error')) {
+          print("❌ Acts API error: ${actsData['error']}");
+        }
+      } catch (e) {
+        print("❌ Error parsing acts JSON: $e");
+        print("Raw acts response: ${actsResponse.body}");
+      }
+    } else {
+      print("❌ Acts request failed: ${actsResponse.statusCode}");
+      print("Acts error body: ${actsResponse.body}");
+    }
+
+    if (articlesResponse.statusCode == 200) {
+      try {
+        final articlesData = json.decode(articlesResponse.body);
+        if (articlesData is List) {
+          fetchedArticles = articlesData;
+          print("✅ Loaded ${fetchedArticles.length} articles");
+        } else if (articlesData is Map && articlesData.containsKey('error')) {
+          print("❌ Articles API error: ${articlesData['error']}");
+        }
+      } catch (e) {
+        print("❌ Error parsing articles JSON: $e");
+        print("Raw articles response: ${articlesResponse.body}");
+      }
+    } else {
+      print("❌ Articles request failed: ${articlesResponse.statusCode}");
+      print("Articles error body: ${articlesResponse.body}");
+    }
+
+    if (casesResponse.statusCode == 200) {
+      try {
+        final casesData = json.decode(casesResponse.body);
+        if (casesData is List) {
+          fetchedCases = casesData;
+          print("✅ Loaded ${fetchedCases.length} cases");  
+        } else if (casesData is Map && casesData.containsKey('error')) {
+          print("❌ Cases API error: ${casesData['error']}");
+        }
+      } catch (e) {
+        print("❌ Error parsing cases JSON: $e");
+        print("Raw cases response: ${casesResponse.body}");
+      }
+    } else {
+      print("❌ Cases request failed: ${casesResponse.statusCode}");
+      print("Cases error body: ${casesResponse.body}");
+    }
+
+    // Update state
+    setState(() {
+      acts = fetchedActs;
+      articles = fetchedArticles;
+      cases = fetchedCases;
+      isLoading = false;
+    });
+
+    print("🎉 Data fetch completed successfully!");
+    print("Final counts - Acts: ${acts.length}, Articles: ${articles.length}, Cases: ${cases.length}");
+
+  } catch (e) {
+    print("💥 Critical error in fetchData: $e");
+    
+    setState(() {
+      isLoading = false;
+    });
+
+    // Show user-friendly error message
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().contains('timeout') 
+              ? "Server is starting up, please wait and try again..."
+              : "Failed to load data: ${e.toString()}",
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Retry',
+            textColor: Colors.white,
+            onPressed: () {
+              setState(() => isLoading = true);
+              fetchData();
+            },
+          ),
+        ),
+      );
     }
   }
+}
+
+// Helper method to fetch with retry logic
+Future<http.Response> _fetchWithRetry(String url, String dataType) async {
+  int maxRetries = 3;
+  int retryDelay = 2; // seconds
+
+  for (int attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      print("🔄 Fetching $dataType (attempt $attempt/$maxRetries)...");
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'User-Agent': 'LawApp/1.0',
+        },
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Request timeout for $dataType');
+        },
+      );
+
+      print("📊 $dataType response: ${response.statusCode}");
+      return response;
+
+    } catch (e) {
+      print("⚠️ $dataType attempt $attempt failed: $e");
+      
+      if (attempt == maxRetries) {
+        rethrow; // Last attempt, throw the error
+      }
+      
+      // Wait before retrying
+      await Future.delayed(Duration(seconds: retryDelay));
+      retryDelay *= 2; // Exponential backoff
+    }
+  }
+  
+  throw Exception('All retry attempts failed for $dataType');
+}
 
   void showSections(Map<String, dynamic> act) {
     final List sections = act['sections'] ?? [];
