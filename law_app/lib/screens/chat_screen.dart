@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:law_app/widgets/chat_bubble.dart';
 import 'package:law_app/widgets/typing_indicator.dart';
 import 'package:law_app/models/chat_message.dart'; // Added import
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 
 class ChatScreen extends StatefulWidget {
   @override
@@ -43,46 +46,60 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     });
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
+void _sendMessage() {
+  if (_messageController.text.trim().isEmpty) return;
 
-    final userMessage = _messageController.text.trim();
+  final userMessage = _messageController.text.trim();
+
+  setState(() {
+    _messages.add(ChatMessage(
+      text: userMessage,
+      isUser: true,
+      timestamp: DateTime.now(),
+    ));
+    _isTyping = true;
+  });
+
+  _messageController.clear();
+  _typingController.repeat();
+  _scrollToBottom();
+
+  _getAIResponseFromBackend(userMessage).then((aiReply) {
     setState(() {
+      _isTyping = false;
       _messages.add(ChatMessage(
-        text: userMessage,
-        isUser: true,
+        text: aiReply,
+        isUser: false,
         timestamp: DateTime.now(),
       ));
-      _isTyping = true;
     });
-
-    _messageController.clear();
-    _typingController.repeat();
+    _typingController.stop();
     _scrollToBottom();
+  });
+}
 
-    Future.delayed(Duration(seconds: 2), () {
-      setState(() {
-        _isTyping = false;
-        _messages.add(ChatMessage(
-          text: _generateAIResponse(userMessage),
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
-      });
-      _typingController.stop();
-      _scrollToBottom();
-    });
-  }
 
-  String _generateAIResponse(String userMessage) {
-    final responses = [
-      "Based on Indian law, I can help you understand your rights. Could you provide more specific details about your situation?",
-      "This is a common legal question. Under the Indian Constitution, you have certain fundamental rights that protect you in this situation.",
-      "I recommend consulting with a qualified lawyer for personalized advice. However, I can provide some general guidance on this matter.",
-      "According to the Indian Penal Code and relevant civil laws, here's what you should know about your situation.",
-    ];
-    return responses[DateTime.now().millisecond % responses.length];
+Future<String> _getAIResponseFromBackend(String userMessage) async {
+  final url = Uri.parse("https://law-and-order-app.onrender.com/chat");
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"message": userMessage}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data["reply"] ?? "Sorry, I couldn't understand your question.";
+    } else {
+      return "⚠️ Server error: ${response.statusCode}";
+    }
+  } catch (e) {
+    return "⚠️ Failed to connect. Please check your internet.";
   }
+}
+
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:law_app/screens/act_sections_page.dart';
+import 'package:law_app/screens/article_detail_page.dart';
+import 'package:law_app/screens/case_detail_page.dart';
 
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
@@ -20,67 +25,81 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    loadMockData(); // Use mock data instead of HTTP call
+    fetchData();
   }
 
-  void loadMockData() async {
-    await Future.delayed(const Duration(seconds: 1)); // simulate loading
-    setState(() {
-      acts = [
-        {
-          'act_id': '1',
-          'act_name': 'Consumer Protection Act',
-          'description': 'An Act to protect the interests of consumers.',
-          'sections': [
-            {
-              'section_number': '1',
-              'title': 'Preliminary',
-              'content': 'This section explains the basics of the Act.'
-            },
-            {
-              'section_number': '2',
-              'title': 'Definitions',
-              'content': 'This section provides definitions for terms used in the Act.'
-            },
-          ]
-        },
-      ];
-      articles = [
-        {
-          'article_number': '21',
-          'title': 'Right to Education',
-          'content': 'The State shall provide free and compulsory education to children.'
-        },
-      ];
-      cases = [
-        {
-          'title': 'Kesavananda Bharati v. State of Kerala',
-          'year': '1973',
-          'summary': 'Introduced the Basic Structure doctrine in the Indian Constitution.'
-        },
-      ];
-      isLoading = false;
-    });
+  Future<void> fetchData() async {
+    const String baseUrl = "https://law-and-order-app.onrender.com";
+
+    try {
+      final actResponse = await http.get(Uri.parse("$baseUrl/acts"));
+      final articleResponse = await http.get(Uri.parse("$baseUrl/articles"));
+      final caseResponse = await http.get(Uri.parse("$baseUrl/cases"));
+
+      setState(() {
+        acts = json.decode(actResponse.body);
+        articles = json.decode(articleResponse.body);
+        cases = json.decode(caseResponse.body);
+        isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Fetch error: $e");
+      setState(() => isLoading = false);
+    }
   }
 
-  void showSections(String actId) {
-    final act = acts.firstWhere((a) => a['act_id'] == actId);
+  void showSections(Map<String, dynamic> act) {
+    final List sections = act['sections'] ?? [];
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(act['act_name']),
+        backgroundColor: const Color(0xFF1D1E33),
+        title: Text(
+          act['act_name'],
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         content: SizedBox(
           width: double.maxFinite,
-          child: ListView.builder(
+          child: ListView.separated(
             shrinkWrap: true,
-            itemCount: act['sections'].length,
+            itemCount: sections.length,
+            separatorBuilder: (_, __) => const Divider(color: Colors.grey),
             itemBuilder: (context, index) {
-              final section = act['sections'][index];
+              final section = sections[index];
               return ListTile(
-                title: Text("Sec ${section['section_number']} - ${section['title']}"),
-                subtitle: Text(section['content']),
+                title: Text(
+                  "Sec ${section['section_number']} - ${section['title']}",
+                  style: const TextStyle(color: Colors.lightBlueAccent),
+                ),
+                subtitle: Text(
+                  section['content'],
+                  style: const TextStyle(color: Colors.white),
+                ),
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildCard(String title, String subtitle, {VoidCallback? onTap}) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      color: const Color(0xFF1D1E33),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        onTap: onTap,
+        title: Text(
+          title,
+          style: const TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.bold),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            subtitle,
+            style: const TextStyle(color: Colors.white70),
           ),
         ),
       ),
@@ -90,10 +109,15 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0A0E21),
       appBar: AppBar(
-        title: const Text("Legal Library"),
+        backgroundColor: const Color(0xFF0A0E21),
+        title: const Text("Legal Library", style: TextStyle(color: Colors.white)),
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.cyanAccent,
+          unselectedLabelColor: Colors.grey,
+          indicatorColor: Colors.cyanAccent,
           tabs: const [
             Tab(text: "Acts"),
             Tab(text: "Articles"),
@@ -102,41 +126,78 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
         ),
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: Colors.cyanAccent))
           : TabBarView(
               controller: _tabController,
               children: [
-                // Acts tab
+                // Acts
                 ListView.builder(
                   itemCount: acts.length,
                   itemBuilder: (context, index) {
                     final act = acts[index];
-                    return ListTile(
-                      title: Text(act['act_name']),
-                      subtitle: Text(act['description']),
-                      onTap: () => showSections(act['act_id']),
+                    return buildCard(
+                      act['act_name'],
+                      act['description'],
+                      onTap: () {
+  Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => ActSectionsPage(
+      actName: act['act_name'],
+      sections: act['sections'],
+      description: act['description'], // ✅ Pass the value here
+    ),
+  ),
+);
+
+},
                     );
                   },
                 ),
-                // Articles tab
+
+                // Articles
                 ListView.builder(
                   itemCount: articles.length,
                   itemBuilder: (context, index) {
                     final article = articles[index];
-                    return ListTile(
-                      title: Text("Article ${article['article_number']} - ${article['title']}"),
-                      subtitle: Text(article['content']),
+                    return buildCard(
+                      "Article ${article['article_number']} - ${article['title']}",
+                      article['content'],
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ArticleDetailPage(
+                              title: "Article ${article['article_number']} - ${article['title']}",
+                              content: article['content'],
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
-                // Cases tab
+
+                // Cases
                 ListView.builder(
                   itemCount: cases.length,
                   itemBuilder: (context, index) {
                     final caseItem = cases[index];
-                    return ListTile(
-                      title: Text(caseItem['title']),
-                      subtitle: Text("${caseItem['year']} - ${caseItem['summary']}"),
+                    return buildCard(
+                      caseItem['title'],
+                      "${caseItem['year']} - ${caseItem['summary']}",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CaseDetailPage(
+                              title: caseItem['title'],
+                              year: caseItem['year'],
+                              summary: caseItem['summary'],
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -145,4 +206,6 @@ class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateM
     );
   }
 }
+
+
 

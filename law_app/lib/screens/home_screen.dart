@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:law_app/widgets/modern_action_card.dart';
 import 'package:law_app/widgets/legal_tip_card.dart';
+import 'package:law_app/screens/library_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -65,23 +66,20 @@ Widget _buildSideMenu() {
     bottom: 0,
     child: Container(
       width: 280,
-      decoration: BoxDecoration(
-        gradient: RadialGradient(
-          center: Alignment.topLeft,
-          radius: 1.5,
-          colors: [
-            Color(0xFF1A1D3A),
-            Color(0xFF0A0E27),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 15,
-            offset: Offset(4, 0),
-          ),
-        ],
-      ),
+    decoration: BoxDecoration(
+  color: const Color(0xFF1A1D3A),
+  borderRadius: BorderRadius.only(
+    topRight: Radius.circular(24),
+    bottomRight: Radius.circular(24),
+  ),
+  boxShadow: [
+    BoxShadow(
+      color: Colors.black.withOpacity(0.4),
+      blurRadius: 15,
+      offset: Offset(4, 0),
+    ),
+  ],
+),
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,13 +127,34 @@ Widget _buildSideMenu() {
               child: ListView(
                 padding: EdgeInsets.symmetric(vertical: 10),
                 children: [
-                  _buildMenuItem(Icons.dashboard, 'Dashboard', 0, true),
-                  _buildMenuItem(Icons.chat_bubble_outline, 'AI Legal Assistant', 1, false),
-                  _buildMenuItem(Icons.description_outlined, 'FIR Assistance', 2, false),
-                  _buildMenuItem(Icons.library_books_outlined, 'Legal Library', 3, false),
-                  _buildMenuItem(Icons.phone_outlined, 'Helplines', 4, false),
-                  _buildMenuItem(Icons.article_outlined, 'Legal Templates', 5, false),
-                  _buildMenuItem(Icons.book_outlined, 'Case Diary', 6, false),
+                 _buildMenuItem(Icons.dashboard, 'Dashboard', 0, true, () {
+  _toggleMenu(); // already on dashboard
+}),
+_buildMenuItem(Icons.chat_bubble_outline, 'AI Legal Assistant', 1, false, () {
+  _toggleMenu();
+}),
+_buildMenuItem(Icons.description_outlined, 'FIR Assistance', 2, false, () {
+  _toggleMenu();
+}),
+_buildMenuItem(Icons.library_books_outlined, 'Legal Library', 3, false, () {
+  _toggleMenu();
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => const LibraryScreen()),
+  );
+}),
+ _buildMenuItem(Icons.phone_outlined, 'Helplines', 4, false, () {
+    _toggleMenu();
+    // TODO: Replace with your actual page
+    // Navigator.push(context, MaterialPageRoute(builder: (_) => HelplineScreen()));
+  }),
+
+  _buildMenuItem(Icons.article_outlined, 'Legal Templates', 5, false, () {
+    _toggleMenu();
+    // TODO: Replace with your actual page
+    // Navigator.push(context, MaterialPageRoute(builder: (_) => LegalTemplateScreen()));
+  }),
+
                 ],
               ),
             ),
@@ -146,12 +165,12 @@ Widget _buildSideMenu() {
   );
 }
 
-Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected) {
+Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, VoidCallback onTap) {
   return Container(
     margin: EdgeInsets.symmetric(horizontal: 10, vertical: 2),
     decoration: BoxDecoration(
       color: isSelected ? Color(0xFF00D4FF).withOpacity(0.1) : Colors.transparent,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(16), // ✅ round corners
       border: isSelected ? Border.all(color: Color(0xFF00D4FF).withOpacity(0.5), width: 1) : null,
     ),
     child: ListTile(
@@ -168,13 +187,11 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected) {
           fontSize: 16,
         ),
       ),
-      onTap: () {
-        // Handle menu item tap
-        _toggleMenu();
-      },
+      onTap: onTap,
     ),
   );
 }
+
 
   @override
   Widget build(BuildContext context) {
