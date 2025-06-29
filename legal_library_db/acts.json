@@ -1,0 +1,36 @@
+[
+  {
+    "act_id": "1",
+    "act_name": "Consumer Protection Act, 2019",
+    "description": "Protects the rights of consumers and provides a mechanism for redressal of complaints.",
+    "sections": [
+      {
+        "section_number": "1",
+        "title": "Short title, extent, commencement and application",
+        "content": "This Act may be called the Consumer Protection Act, 2019."
+      },
+      {
+        "section_number": "2",
+        "title": "Definitions",
+        "content": "In this Act, unless the context otherwise requires..."
+      }
+    ]
+  },
+  {
+    "act_id": "2",
+    "act_name": "Information Technology Act, 2000",
+    "description": "Provides legal recognition for transactions carried out by means of electronic data interchange.",
+    "sections": [
+      {
+        "section_number": "66A",
+        "title": "Punishment for sending offensive messages",
+        "content": "Any person who sends, by means of a computer resource or a communication device..."
+      },
+      {
+        "section_number": "72",
+        "title": "Penalty for breach of confidentiality and privacy",
+        "content": "Save as otherwise provided in this Act or any other law for the time being in force..."
+      }
+    ]
+  }
+]

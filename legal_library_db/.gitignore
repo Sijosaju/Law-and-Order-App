@@ -1,0 +1,12 @@
+# Don't upload your environment secrets
+.env
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# OS-specific
+.DS_Store
+
+# VS Code settings
+.vscode/
