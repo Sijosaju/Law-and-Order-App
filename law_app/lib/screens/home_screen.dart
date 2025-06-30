@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:law_app/screens/chat_screen.dart';
 import 'package:law_app/widgets/modern_action_card.dart';
 import 'package:law_app/widgets/legal_tip_card.dart';
 import 'package:law_app/screens/library_screen.dart';
@@ -10,11 +11,66 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  late Animation _fadeAnimation;
+  late Animation _slideAnimation;
+
   bool _isMenuOpen = false;
   bool _isSearchOpen = false;
   TextEditingController _searchController = TextEditingController();
+
+  // --- DATA FOR SEARCH ---
+  final List<Map<String, dynamic>> _quickActions = [
+    {
+      'icon': Icons.chat_bubble,
+      'title': 'AI Legal Chat',
+      'subtitle': 'Get instant answers',
+      'gradient': [Color(0xFF00D4FF), Color(0xFF5B73FF)],
+      'onTap': () {},
+    },
+    {
+      'icon': Icons.description,
+      'title': 'File FIR',
+      'subtitle': 'File complaint online',
+      'gradient': [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+      'onTap': () {},
+    },
+    {
+      'icon': Icons.person_search,
+      'title': 'Find Lawyer',
+      'subtitle': 'Connect with experts',
+      'gradient': [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+      'onTap': () {},
+    },
+    {
+      'icon': Icons.track_changes,
+      'title': 'Track Case',
+      'subtitle': 'Check case status',
+      'gradient': [Color(0xFF667eea), Color(0xFF764ba2)],
+      'onTap': () {},
+    },
+  ];
+
+  final List<Map<String, dynamic>> _legalInsights = [
+    {
+      'title': 'Know Your Rights During Arrest',
+      'description': 'Understanding your fundamental rights during police custody is crucial...',
+      'icon': Icons.security,
+    },
+    {
+      'title': 'Property Documentation Guide',
+      'description': 'Essential documents needed for property transactions and disputes...',
+      'icon': Icons.home,
+    },
+    {
+      'title': 'Consumer Protection Laws',
+      'description': 'Learn about your rights as a consumer in various situations...',
+      'icon': Icons.shopping_cart,
+    },
+  ];
+
+  // --- FILTERED LISTS ---
+  List<Map<String, dynamic>> _filteredQuickActions = [];
+  List<Map<String, dynamic>> _filteredLegalInsights = [];
 
   @override
   void initState() {
@@ -23,10 +79,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       duration: Duration(milliseconds: 1200),
       vsync: this,
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _fadeAnimation = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-    _slideAnimation = Tween<Offset>(
+    _slideAnimation = Tween(
       begin: Offset(0, 0.3),
       end: Offset.zero,
     ).animate(CurvedAnimation(
@@ -34,6 +90,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       curve: Curves.easeOut,
     ));
     _animationController.forward();
+
+    // Initially, filtered lists are the same as originals
+    _filteredQuickActions = List.from(_quickActions);
+    _filteredLegalInsights = List.from(_legalInsights);
+
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
@@ -54,144 +116,166 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _isSearchOpen = !_isSearchOpen;
       if (!_isSearchOpen) {
         _searchController.clear();
+        // Reset filtered lists
+        _filteredQuickActions = List.from(_quickActions);
+        _filteredLegalInsights = List.from(_legalInsights);
       }
     });
   }
 
-Widget _buildSideMenu() {
-  return AnimatedPositioned(
-    duration: Duration(milliseconds: 300),
-    left: _isMenuOpen ? 0 : -280,
-    top: 0,
-    bottom: 0,
-    child: Container(
-      width: 280,
-    decoration: BoxDecoration(
-  color: const Color(0xFF1A1D3A),
-  borderRadius: BorderRadius.only(
-    topRight: Radius.circular(24),
-    bottomRight: Radius.circular(24),
-  ),
-  boxShadow: [
-    BoxShadow(
-      color: Colors.black.withOpacity(0.4),
-      blurRadius: 15,
-      offset: Offset(4, 0),
-    ),
-  ],
-),
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Menu Header
-            Container(
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF1A1D3A), Color(0xFF0A0E27)],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.home,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    'LexAid',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Menu Items
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.symmetric(vertical: 10),
-                children: [
-                 _buildMenuItem(Icons.dashboard, 'Dashboard', 0, true, () {
-  _toggleMenu(); // already on dashboard
-}),
-_buildMenuItem(Icons.chat_bubble_outline, 'AI Legal Assistant', 1, false, () {
-  _toggleMenu();
-}),
-_buildMenuItem(Icons.description_outlined, 'FIR Assistance', 2, false, () {
-  _toggleMenu();
-}),
-_buildMenuItem(Icons.library_books_outlined, 'Legal Library', 3, false, () {
-  _toggleMenu();
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => const LibraryScreen()),
-  );
-}),
- _buildMenuItem(Icons.phone_outlined, 'Helplines', 4, false, () {
-    _toggleMenu();
-    // TODO: Replace with your actual page
-    // Navigator.push(context, MaterialPageRoute(builder: (_) => HelplineScreen()));
-  }),
+  void _onSearchChanged() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      if (query.isEmpty) {
+        _filteredQuickActions = List.from(_quickActions);
+        _filteredLegalInsights = List.from(_legalInsights);
+      } else {
+        _filteredQuickActions = _quickActions.where((action) {
+          return action['title'].toLowerCase().contains(query) ||
+              action['subtitle'].toLowerCase().contains(query);
+        }).toList();
 
-  _buildMenuItem(Icons.article_outlined, 'Legal Templates', 5, false, () {
-    _toggleMenu();
-    // TODO: Replace with your actual page
-    // Navigator.push(context, MaterialPageRoute(builder: (_) => LegalTemplateScreen()));
-  }),
+        _filteredLegalInsights = _legalInsights.where((tip) {
+          return tip['title'].toLowerCase().contains(query) ||
+              tip['description'].toLowerCase().contains(query);
+        }).toList();
+      }
+    });
+  }
 
-                ],
-              ),
+  Widget _buildSideMenu() {
+    return AnimatedPositioned(
+      duration: Duration(milliseconds: 300),
+      left: _isMenuOpen ? 0 : -280,
+      top: 0,
+      bottom: 0,
+      child: Container(
+        width: 280,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1D3A),
+          borderRadius: BorderRadius.only(
+            topRight: Radius.circular(24),
+            bottomRight: Radius.circular(24),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.4),
+              blurRadius: 15,
+              offset: Offset(4, 0),
             ),
           ],
         ),
-      ),
-    ),
-  );
-}
-
-Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, VoidCallback onTap) {
-  return Container(
-    margin: EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-    decoration: BoxDecoration(
-      color: isSelected ? Color(0xFF00D4FF).withOpacity(0.1) : Colors.transparent,
-      borderRadius: BorderRadius.circular(16), // ✅ round corners
-      border: isSelected ? Border.all(color: Color(0xFF00D4FF).withOpacity(0.5), width: 1) : null,
-    ),
-    child: ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? Color(0xFF00D4FF) : Colors.white70,
-        size: 22,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isSelected ? Color(0xFF00D4FF) : Colors.white70,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-          fontSize: 16,
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Menu Header
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF1A1D3A), Color(0xFF0A0E27)],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.home,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Text(
+                      'LexAid',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Menu Items
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  children: [
+                    _buildMenuItem(Icons.dashboard, 'Dashboard', 0, true, () {
+                      _toggleMenu(); // already on dashboard
+                    }),
+                    _buildMenuItem(Icons.chat_bubble_outline, 'AI Legal Assistant', 1, false, () {
+                      _toggleMenu();
+                       Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ChatScreen()),
+                      );
+                    }),
+                    _buildMenuItem(Icons.description_outlined, 'FIR Assistance', 2, false, () {
+                      _toggleMenu();
+                    }),
+                    _buildMenuItem(Icons.library_books_outlined, 'Legal Library', 3, false, () {
+                      _toggleMenu();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LibraryScreen()),
+                      );
+                    }),
+                    _buildMenuItem(Icons.phone_outlined, 'Helplines', 4, false, () {
+                      _toggleMenu();
+                      // TODO: Replace with your actual page
+                    }),
+                    _buildMenuItem(Icons.article_outlined, 'Legal Templates', 5, false, () {
+                      _toggleMenu();
+                      // TODO: Replace with your actual page
+                    }),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      onTap: onTap,
-    ),
-  );
-}
+    );
+  }
 
+  Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, VoidCallback onTap) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        color: isSelected ? Color(0xFF00D4FF).withOpacity(0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        border: isSelected ? Border.all(color: Color(0xFF00D4FF).withOpacity(0.5), width: 1) : null,
+      ),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isSelected ? Color(0xFF00D4FF) : Colors.white70,
+          size: 22,
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isSelected ? Color(0xFF00D4FF) : Colors.white70,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            fontSize: 16,
+          ),
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -212,19 +296,18 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
             ),
             child: SafeArea(
               child: FadeTransition(
-                opacity: _fadeAnimation,
+                opacity: _fadeAnimation as Animation<double>,
                 child: SlideTransition(
-                  position: _slideAnimation,
+                  position: _slideAnimation as Animation<Offset>,
                   child: SingleChildScrollView(
                     padding: EdgeInsets.only(
                       left: 20,
                       right: 20,
-                      bottom: MediaQuery.of(context).padding.bottom + 80, // Padding for navigation bar height
+                      bottom: MediaQuery.of(context).padding.bottom + 80,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header Section
                         SizedBox(height: 20),
                         Row(
                           children: [
@@ -245,7 +328,6 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
                               ),
                             ),
                             SizedBox(width: 16),
-                            
                             // Dashboard Title
                             Expanded(
                               child: Text(
@@ -257,7 +339,6 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
                                 ),
                               ),
                             ),
-                            
                             // Search Button
                             GestureDetector(
                               onTap: _toggleSearch,
@@ -283,7 +364,6 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
                           ],
                         ),
                         SizedBox(height: 32),
-
                         // Welcome Section
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,7 +408,6 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
                           ],
                         ),
                         SizedBox(height: 32),
-
                         // Search Bar Section (Animated)
                         AnimatedContainer(
                           duration: Duration(milliseconds: 300),
@@ -370,7 +449,6 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
                               : SizedBox.shrink(),
                         ),
                         if (_isSearchOpen) SizedBox(height: 20),
-
                         // Quick Actions Section
                         Text(
                           'Quick Actions',
@@ -381,49 +459,33 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
                           ),
                         ),
                         SizedBox(height: 20),
-                   SizedBox(
-  height: 360, // Adjust if needed based on your layout
-  child: GridView.count(
-    crossAxisCount: 2,
-    crossAxisSpacing: 16,
-    mainAxisSpacing: 16,
-    childAspectRatio: 1.1,
-    physics: NeverScrollableScrollPhysics(),
-    children: [
-      ModernActionCard(
-        icon: Icons.chat_bubble,
-        title: 'AI Legal Chat',
-        subtitle: 'Get instant answers',
-        gradient: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
-        onTap: () {},
-      ),
-      ModernActionCard(
-        icon: Icons.description,
-        title: 'File FIR',
-        subtitle: 'File complaint online',
-        gradient: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
-        onTap: () {},
-      ),
-      ModernActionCard(
-        icon: Icons.person_search,
-        title: 'Find Lawyer',
-        subtitle: 'Connect with experts',
-        gradient: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
-        onTap: () {},
-      ),
-      ModernActionCard(
-        icon: Icons.track_changes,
-        title: 'Track Case',
-        subtitle: 'Check case status',
-        gradient: [Color(0xFF667eea), Color(0xFF764ba2)],
-        onTap: () {},
-      ),
-    ],
-  ),
-),
-
+                        SizedBox(
+                          height: 360,
+                          child: _filteredQuickActions.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    'No actions found.',
+                                    style: TextStyle(color: Colors.white54),
+                                  ),
+                                )
+                              : GridView.count(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  childAspectRatio: 1.1,
+                                  physics: NeverScrollableScrollPhysics(),
+                                  children: _filteredQuickActions
+                                      .map((action) => ModernActionCard(
+                                            icon: action['icon'],
+                                            title: action['title'],
+                                            subtitle: action['subtitle'],
+                                            gradient: action['gradient'],
+                                            onTap: action['onTap'],
+                                          ))
+                                      .toList(),
+                                ),
+                        ),
                         SizedBox(height: 40),
-
                         // Legal Insights Section
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -451,23 +513,31 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
                         SizedBox(height: 16),
                         Container(
                           height: 200,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: 3,
-                            itemBuilder: (context, index) {
-                              return Container(
-                                width: 280,
-                                margin: EdgeInsets.only(right: 16),
-                                child: LegalTipCard(
-                                  title: _getTipTitle(index),
-                                  description: _getTipDescription(index),
-                                  icon: _getTipIcon(index),
+                          child: _filteredLegalInsights.isEmpty
+                              ? Center(
+                                  child: Text(
+                                    'No insights found.',
+                                    style: TextStyle(color: Colors.white54),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _filteredLegalInsights.length,
+                                  itemBuilder: (context, index) {
+                                    final tip = _filteredLegalInsights[index];
+                                    return Container(
+                                      width: 280,
+                                      margin: EdgeInsets.only(right: 16),
+                                      child: LegalTipCard(
+                                        title: tip['title'],
+                                        description: tip['description'],
+                                        icon: tip['icon'],
+                                      ),
+                                    );
+                                  },
                                 ),
-                              );
-                            },
-                          ),
                         ),
-                        SizedBox(height: 100), // Space for FAB (handled by MainScreen)
+                        SizedBox(height: 100),
                       ],
                     ),
                   ),
@@ -475,7 +545,6 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
               ),
             ),
           ),
-          
           // Menu Overlay
           if (_isMenuOpen)
             GestureDetector(
@@ -484,34 +553,10 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
                 color: Colors.black26,
               ),
             ),
-          
-          // Side Menu (on top of overlay to prevent SOS button showing through)
+          // Side Menu
           _buildSideMenu(),
         ],
       ),
     );
-  }
-
-  String _getTipTitle(int index) {
-    final titles = [
-      'Know Your Rights During Arrest',
-      'Property Documentation Guide',
-      'Consumer Protection Laws',
-    ];
-    return titles[index];
-  }
-
-  String _getTipDescription(int index) {
-    final descriptions = [
-      'Understanding your fundamental rights during police custody is crucial...',
-      'Essential documents needed for property transactions and disputes...',
-      'Learn about your rights as a consumer in various situations...',
-    ];
-    return descriptions[index];
-  }
-
-  IconData _getTipIcon(int index) {
-    final icons = [Icons.security, Icons.home, Icons.shopping_cart];
-    return icons[index];
   }
 }

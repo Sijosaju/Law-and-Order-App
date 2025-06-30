@@ -197,7 +197,7 @@ Future<String> _getAIResponseFromBackend(String userMessage) async {
               padding: EdgeInsets.only(
                 left: 16,
                 right: 16,
-                bottom: 90, // Increased to 90 to fully clear the navigation bar (60px height + 10px margin + shadow buffer)
+               bottom: MediaQuery.of(context).viewInsets.bottom + 16,
               ),
               child: Container(
                 padding: EdgeInsets.all(16),

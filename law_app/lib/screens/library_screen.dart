@@ -14,21 +14,115 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> with TickerProviderStateMixin {
   late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
 
   List<dynamic> acts = [];
   List<dynamic> articles = [];
   List<dynamic> cases = [];
 
+  // Filtered lists for search
+  List<dynamic> filteredActs = [];
+  List<dynamic> filteredArticles = [];
+  List<dynamic> filteredCases = [];
+
   bool isLoading = true;
+  bool isSearching = false;
+  String searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     fetchData();
+    
+    // Listen to search controller changes
+    _searchController.addListener(_onSearchChanged);
   }
 
-// Replace your fetchData() method with this improved version
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      searchQuery = _searchController.text.toLowerCase();
+      isSearching = searchQuery.isNotEmpty;
+      _performSearch();
+    });
+  }
+
+  void _performSearch() {
+    if (searchQuery.isEmpty) {
+      filteredActs = acts;
+      filteredArticles = articles;
+      filteredCases = cases;
+      return;
+    }
+
+    // Search in Acts
+    filteredActs = acts.where((act) {
+      final actName = (act['act_name'] ?? '').toString().toLowerCase();
+      final description = (act['description'] ?? '').toString().toLowerCase();
+      
+      // Search in act name and description
+      bool matchesAct = actName.contains(searchQuery) || description.contains(searchQuery);
+      
+      // Search in sections
+      bool matchesSection = false;
+      if (act['sections'] != null) {
+        final sections = act['sections'] as List;
+        matchesSection = sections.any((section) {
+          final sectionTitle = (section['title'] ?? '').toString().toLowerCase();
+          final sectionContent = (section['content'] ?? '').toString().toLowerCase();
+          final sectionNumber = (section['section_number'] ?? '').toString().toLowerCase();
+          
+          return sectionTitle.contains(searchQuery) || 
+                 sectionContent.contains(searchQuery) ||
+                 sectionNumber.contains(searchQuery);
+        });
+      }
+      
+      return matchesAct || matchesSection;
+    }).toList();
+
+    // Search in Articles
+    filteredArticles = articles.where((article) {
+      final title = (article['title'] ?? '').toString().toLowerCase();
+      final content = (article['content'] ?? '').toString().toLowerCase();
+      final articleNumber = (article['article_number'] ?? '').toString().toLowerCase();
+      
+      return title.contains(searchQuery) || 
+             content.contains(searchQuery) ||
+             articleNumber.contains(searchQuery);
+    }).toList();
+
+    // Search in Cases
+    filteredCases = cases.where((caseItem) {
+      final title = (caseItem['title'] ?? '').toString().toLowerCase();
+      final summary = (caseItem['summary'] ?? '').toString().toLowerCase();
+      final year = (caseItem['year'] ?? '').toString().toLowerCase();
+      
+      return title.contains(searchQuery) || 
+             summary.contains(searchQuery) ||
+             year.contains(searchQuery);
+    }).toList();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      searchQuery = '';
+      isSearching = false;
+      filteredActs = acts;
+      filteredArticles = articles;
+      filteredCases = cases;
+    });
+  }
+
 // Replace your fetchData() method with this improved version
 Future<void> fetchData() async {
   const String baseUrl = "https://law-and-order-app.onrender.com";
@@ -135,6 +229,10 @@ Future<void> fetchData() async {
       acts = fetchedActs;
       articles = fetchedArticles;
       cases = fetchedCases;
+      // Initialize filtered lists
+      filteredActs = fetchedActs;
+      filteredArticles = fetchedArticles;
+      filteredCases = fetchedCases;
       isLoading = false;
     });
 
@@ -273,6 +371,136 @@ Future<http.Response> _fetchWithRetry(String url, String dataType) async {
     );
   }
 
+  Widget _buildSearchBar() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1D1E33),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: const TextStyle(color: Colors.white),
+        decoration: InputDecoration(
+          hintText: 'Search acts, articles, cases, sections...',
+          hintStyle: TextStyle(color: Colors.grey[400]),
+          prefixIcon: const Icon(Icons.search, color: Colors.cyanAccent),
+          suffixIcon: isSearching
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.cyanAccent),
+                  onPressed: _clearSearch,
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    final totalResults = filteredActs.length + filteredArticles.length + filteredCases.length;
+    
+    if (totalResults == 0) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 64, color: Colors.grey[600]),
+            const SizedBox(height: 16),
+            Text(
+              'No results found for "$searchQuery"',
+              style: TextStyle(color: Colors.grey[400], fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try different keywords or check spelling',
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      children: [
+        if (filteredActs.isNotEmpty) ...[
+          _buildSectionHeader('Acts (${filteredActs.length})'),
+          ...filteredActs.map((act) => buildCard(
+            act['act_name'],
+            act['description'],
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ActSectionsPage(
+                    actName: act['act_name'],
+                    sections: act['sections'],
+                    description: act['description'],
+                  ),
+                ),
+              );
+            },
+          )),
+        ],
+        
+        if (filteredArticles.isNotEmpty) ...[
+          _buildSectionHeader('Articles (${filteredArticles.length})'),
+          ...filteredArticles.map((article) => buildCard(
+            "Article ${article['article_number']} - ${article['title']}",
+            article['content'],
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ArticleDetailPage(
+                    title: "Article ${article['article_number']} - ${article['title']}",
+                    content: article['content'],
+                  ),
+                ),
+              );
+            },
+          )),
+        ],
+        
+        if (filteredCases.isNotEmpty) ...[
+          _buildSectionHeader('Cases (${filteredCases.length})'),
+          ...filteredCases.map((caseItem) => buildCard(
+            caseItem['title'],
+            "${caseItem['year']} - ${caseItem['summary']}",
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CaseDetailPage(
+                    title: caseItem['title'],
+                    year: caseItem['year'],
+                    summary: caseItem['summary'],
+                  ),
+                ),
+              );
+            },
+          )),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.cyanAccent,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -280,7 +508,7 @@ Future<http.Response> _fetchWithRetry(String url, String dataType) async {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0A0E21),
         title: const Text("Legal Library", style: TextStyle(color: Colors.white)),
-        bottom: TabBar(
+        bottom: isSearching ? null : TabBar(
           controller: _tabController,
           labelColor: Colors.cyanAccent,
           unselectedLabelColor: Colors.grey,
@@ -292,84 +520,92 @@ Future<http.Response> _fetchWithRetry(String url, String dataType) async {
           ],
         ),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.cyanAccent))
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                // Acts
-                ListView.builder(
-                  itemCount: acts.length,
-                  itemBuilder: (context, index) {
-                    final act = acts[index];
-                    return buildCard(
-                      act['act_name'],
-                      act['description'],
-                      onTap: () {
-  Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) => ActSectionsPage(
-      actName: act['act_name'],
-      sections: act['sections'],
-      description: act['description'], // ✅ Pass the value here
-    ),
-  ),
-);
-
-},
-                    );
-                  },
-                ),
-
-                // Articles
-                ListView.builder(
-                  itemCount: articles.length,
-                  itemBuilder: (context, index) {
-                    final article = articles[index];
-                    return buildCard(
-                      "Article ${article['article_number']} - ${article['title']}",
-                      article['content'],
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ArticleDetailPage(
-                              title: "Article ${article['article_number']} - ${article['title']}",
-                              content: article['content'],
-                            ),
+      body: Column(
+        children: [
+          _buildSearchBar(),
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator(color: Colors.cyanAccent))
+                : isSearching
+                    ? _buildSearchResults()
+                    : TabBarView(
+                        controller: _tabController,
+                        children: [
+                          // Acts
+                          ListView.builder(
+                            itemCount: filteredActs.length,
+                            itemBuilder: (context, index) {
+                              final act = filteredActs[index];
+                              return buildCard(
+                                act['act_name'],
+                                act['description'],
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ActSectionsPage(
+                                        actName: act['act_name'],
+                                        sections: act['sections'],
+                                        description: act['description'],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
                           ),
-                        );
-                      },
-                    );
-                  },
-                ),
 
-                // Cases
-                ListView.builder(
-                  itemCount: cases.length,
-                  itemBuilder: (context, index) {
-                    final caseItem = cases[index];
-                    return buildCard(
-                      caseItem['title'],
-                      "${caseItem['year']} - ${caseItem['summary']}",
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CaseDetailPage(
-                              title: caseItem['title'],
-                              year: caseItem['year'],
-                              summary: caseItem['summary'],
-                            ),
+                          // Articles
+                          ListView.builder(
+                            itemCount: filteredArticles.length,
+                            itemBuilder: (context, index) {
+                              final article = filteredArticles[index];
+                              return buildCard(
+                                "Article ${article['article_number']} - ${article['title']}",
+                                article['content'],
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ArticleDetailPage(
+                                        title: "Article ${article['article_number']} - ${article['title']}",
+                                        content: article['content'],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
                           ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
+
+                          // Cases
+                          ListView.builder(
+                            itemCount: filteredCases.length,
+                            itemBuilder: (context, index) {
+                              final caseItem = filteredCases[index];
+                              return buildCard(
+                                caseItem['title'],
+                                "${caseItem['year']} - ${caseItem['summary']}",
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CaseDetailPage(
+                                        title: caseItem['title'],
+                                        year: caseItem['year'],
+                                        summary: caseItem['summary'],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+          ),
+        ],
+      ),
     );
   }
 }
