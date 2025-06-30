@@ -128,7 +128,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                           ).createShader(bounds),
                           child: Text(
-                            'Legal Help India',
+                            'LexAid',
                             style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w700,

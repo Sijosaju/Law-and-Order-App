@@ -112,7 +112,7 @@ Widget _buildSideMenu() {
                   ),
                   SizedBox(width: 12),
                   Text(
-                    'Nyaya Sahayak',
+                    'LexAid',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
@@ -292,7 +292,7 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
                               text: TextSpan(
                                 children: [
                                   TextSpan(
-                                    text: 'Welcome to Nyaya\n',
+                                    text: 'Welcome to\n',
                                     style: TextStyle(
                                       fontSize: 28,
                                       fontWeight: FontWeight.w700,
@@ -303,7 +303,7 @@ Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, V
                                     ),
                                   ),
                                   TextSpan(
-                                    text: 'Sahayak',
+                                    text: 'LexAid',
                                     style: TextStyle(
                                       fontSize: 28,
                                       fontWeight: FontWeight.w700,

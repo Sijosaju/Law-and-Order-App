@@ -39,7 +39,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void _addWelcomeMessage() {
     setState(() {
       _messages.add(ChatMessage(
-        text: "Hello! I'm your AI legal assistant. How can I help you with your legal questions today?",
+        text: "Hello! I'm Dharma,your AI legal assistant. How can I help you with your legal questions today?",
         isUser: false,
         timestamp: DateTime.now(),
       ));
@@ -144,7 +144,7 @@ Future<String> _getAIResponseFromBackend(String userMessage) async {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'AI Legal Assistant',
+                  'Dharma AI',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 Text(
