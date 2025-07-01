@@ -47,6 +47,21 @@ def validate_db_connection():
     except Exception as e:
         return False, str(e)
 
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """Calculate distance between two points in kilometers"""
+    from math import radians, cos, sin, asin, sqrt
+    
+    # Convert decimal degrees to radians
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    
+    # Haversine formula
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a))
+    r = 6371  # Radius of earth in kilometers
+    return c * r
+
 # ======================= ROUTES =======================
 
 @app.route('/')
@@ -57,6 +72,7 @@ def index():
             "acts": "/acts",
             "articles": "/articles", 
             "cases": "/cases",
+            "lawyers": "/lawyers",
             "chat": "/chat",
             "debug": "/debug/db-status"
         }
@@ -85,8 +101,8 @@ def debug_db_status():
     try:
         if db is None:
             return jsonify({
-                "status": "error", 
-                "message": "Database not connected", 
+                "status": "error",
+                "message": "Database not connected",
                 "mongo_uri_exists": bool(mongo_uri)
             }), 500
 
@@ -95,10 +111,12 @@ def debug_db_status():
         acts_count = db.acts.count_documents({})
         articles_count = db.articles.count_documents({})
         cases_count = db.cases.count_documents({})
+        lawyers_count = db.lawyers.count_documents({}) if 'lawyers' in collections else 0
 
         sample_act = db.acts.find_one({}, {'_id': 0}) if acts_count > 0 else None
         sample_article = db.articles.find_one({}, {'_id': 0}) if articles_count > 0 else None
         sample_case = db.cases.find_one({}, {'_id': 0}) if cases_count > 0 else None
+        sample_lawyer = db.lawyers.find_one({}, {'_id': 0}) if lawyers_count > 0 else None
 
         return jsonify({
             "status": "connected",
@@ -107,14 +125,17 @@ def debug_db_status():
             "document_counts": {
                 "acts": acts_count,
                 "articles": articles_count,
-                "cases": cases_count
+                "cases": cases_count,
+                "lawyers": lawyers_count
             },
             "sample_data": {
                 "act": sample_act,
                 "article": sample_article,
-                "case": sample_case
+                "case": sample_case,
+                "lawyer": sample_lawyer
             }
         })
+
     except Exception as e:
         logger.error(f"Database debug error: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -131,17 +152,21 @@ def test():
 def get_acts():
     try:
         logger.info("📚 Fetching acts from database...")
-        if db is None:  # ✅ FIXED: Compare with None instead of using 'not db'
+        if db is None:
             logger.error("Database not connected")
             return jsonify({"error": "Database not connected"}), 500
+
         acts_cursor = db.acts.find({}, {'_id': 0})
         acts = list(acts_cursor)
         logger.info(f"Found {len(acts)} acts")
+
         if not acts:
             logger.warning("No acts found in database")
             return jsonify([])
+
         logger.info(f"First act structure: {list(acts[0].keys())}")
         return jsonify(acts)
+
     except Exception as e:
         logger.error(f"Error in get_acts: {str(e)}")
         return jsonify({"error": f"Failed to fetch acts: {str(e)}"}), 500
@@ -150,18 +175,22 @@ def get_acts():
 def get_act_sections(act_id):
     try:
         logger.info(f"📖 Fetching sections for act ID: {act_id}")
-        if db is None:  # ✅ FIXED: Compare with None
+        if db is None:
             return jsonify({"error": "Database not connected"}), 500
+
         act = db.acts.find_one({
             "$or": [
                 {"act_id": act_id},
                 {"act_name": {"$regex": act_id, "$options": "i"}}
             ]
         }, {'_id': 0})
+
         if not act:
             logger.warning(f"Act not found: {act_id}")
             return jsonify({"error": "Act not found"}), 404
+
         return jsonify(act)
+
     except Exception as e:
         logger.error(f"Error in get_act_sections: {str(e)}")
         return jsonify({"error": f"Failed to fetch act sections: {str(e)}"}), 500
@@ -170,17 +199,21 @@ def get_act_sections(act_id):
 def get_articles():
     try:
         logger.info("📰 Fetching articles from database...")
-        if db is None:  # ✅ FIXED: Compare with None
+        if db is None:
             logger.error("Database not connected")
             return jsonify({"error": "Database not connected"}), 500
+
         articles_cursor = db.articles.find({}, {'_id': 0})
         articles = list(articles_cursor)
         logger.info(f"Found {len(articles)} articles")
+
         if not articles:
             logger.warning("No articles found in database")
             return jsonify([])
+
         logger.info(f"First article structure: {list(articles[0].keys())}")
         return jsonify(articles)
+
     except Exception as e:
         logger.error(f"Error in get_articles: {str(e)}")
         return jsonify({"error": f"Failed to fetch articles: {str(e)}"}), 500
@@ -189,20 +222,80 @@ def get_articles():
 def get_cases():
     try:
         logger.info("⚖️ Fetching cases from database...")
-        if db is None:  # ✅ FIXED: Compare with None
-            logger.error("Database not connected")
+        if db is None:
             return jsonify({"error": "Database not connected"}), 500
+
         cases_cursor = db.cases.find({}, {'_id': 0})
         cases = list(cases_cursor)
         logger.info(f"Found {len(cases)} cases")
+
         if not cases:
             logger.warning("No cases found in database")
             return jsonify([])
+
         logger.info(f"First case structure: {list(cases[0].keys())}")
         return jsonify(cases)
+
     except Exception as e:
         logger.error(f"Error in get_cases: {str(e)}")
         return jsonify({"error": f"Failed to fetch cases: {str(e)}"}), 500
+
+@app.route('/lawyers', methods=['GET'])
+def get_lawyers():
+    try:
+        logger.info("👨‍⚖️ Fetching lawyers from database...")
+        if db is None:
+            logger.error("Database not connected")
+            return jsonify({"error": "Database not connected"}), 500
+
+        # Get query parameters for filtering
+        expertise = request.args.get('expertise')
+        city = request.args.get('city')
+        min_rating = request.args.get('min_rating', type=float)
+        verified = request.args.get('verified', type=bool)
+        lat = request.args.get('lat', type=float)
+        lng = request.args.get('lng', type=float)
+        radius = request.args.get('radius', type=float, default=50)  # km
+        search = request.args.get('search', '').strip()
+
+        # Build query
+        query = {}
+        if expertise and expertise != 'All':
+            query['expertise'] = expertise
+        if city and city != 'All':
+            query['city'] = city
+        if min_rating:
+            query['rating'] = {'$gte': min_rating}
+        if verified:
+            query['verified'] = True
+        if search:
+            query['$or'] = [
+                {'name': {'$regex': search, '$options': 'i'}},
+                {'expertise': {'$regex': search, '$options': 'i'}},
+                {'city': {'$regex': search, '$options': 'i'}},
+                {'description': {'$regex': search, '$options': 'i'}}
+            ]
+
+        lawyers_cursor = db.lawyers.find(query, {'_id': 0})
+        lawyers = list(lawyers_cursor)
+
+        # Filter by location if provided
+        if lat and lng:
+            filtered_lawyers = []
+            for lawyer in lawyers:
+                if 'latitude' in lawyer and 'longitude' in lawyer:
+                    distance = calculate_distance(lat, lng, lawyer['latitude'], lawyer['longitude'])
+                    if distance <= radius:
+                        lawyer['distance'] = distance
+                        filtered_lawyers.append(lawyer)
+            lawyers = sorted(filtered_lawyers, key=lambda x: x.get('distance', float('inf')))
+
+        logger.info(f"Found {len(lawyers)} lawyers")
+        return jsonify(lawyers)
+
+    except Exception as e:
+        logger.error(f"Error in get_lawyers: {str(e)}")
+        return jsonify({"error": f"Failed to fetch lawyers: {str(e)}"}), 500
 
 @app.route('/chat', methods=['POST', 'OPTIONS'])
 def chat():
@@ -212,6 +305,7 @@ def chat():
     try:
         logger.info("🤖 Chat endpoint called")
         data = request.get_json()
+
         if not data:
             return jsonify({"reply": "❌ No JSON data received"}), 400
 
@@ -227,17 +321,19 @@ def chat():
             return jsonify({"reply": "❌ AI service not configured"}), 500
 
         logger.info("Making request to OpenRouter...")
+
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": os.getenv("SITE_URL", "https://law-and-order-app.onrender.com"),
             "X-Title": os.getenv("SITE_TITLE", "Nyaya Sahayak"),
         }
+
         payload = {
             "model": "deepseek/deepseek-chat",
             "messages": [
                 {
-                    "role": "system", 
+                    "role": "system",
                     "content": "You are a helpful legal assistant for Indian law. Provide accurate information while noting that you cannot provide legal advice and users should consult qualified lawyers for specific legal matters."
                 },
                 {"role": "user", "content": user_message}
@@ -281,24 +377,30 @@ def chat():
 @app.route('/debug/collections', methods=['GET'])
 def debug_collections():
     try:
-        if db is None:  # ✅ FIXED: Compare with None
+        if db is None:
             return jsonify({"error": "Database not connected"}), 500
+
         result = {}
-        collections = ['acts', 'articles', 'cases']
+        collections = ['acts', 'articles', 'cases', 'lawyers']
+
         for collection_name in collections:
             collection = db[collection_name]
             count = collection.count_documents({})
             sample = collection.find_one({}, {'_id': 0})
+
             field_names = set()
             for doc in collection.find({}).limit(5):
                 field_names.update(doc.keys())
             field_names.discard('_id')
+
             result[collection_name] = {
                 "count": count,
                 "sample_document": sample,
                 "all_fields": list(field_names)
             }
+
         return jsonify(result)
+
     except Exception as e:
         logger.error(f"Error inspecting collections: {str(e)}")
         return jsonify({"error": str(e)}), 500
@@ -319,10 +421,11 @@ def internal_error(error):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
-
+    
     logger.info(f"🚀 Starting Flask app on port {port}")
     logger.info(f"Debug mode: {debug_mode}")
-    logger.info(f"Database connected: {db is not None}")  # ✅ FIXED: Compare with None
-
+    logger.info(f"Database connected: {db is not None}")
+    
     app.run(host="0.0.0.0", port=port, debug=debug_mode)
+
 

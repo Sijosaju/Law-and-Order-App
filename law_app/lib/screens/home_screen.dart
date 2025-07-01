@@ -3,6 +3,8 @@ import 'package:law_app/screens/chat_screen.dart';
 import 'package:law_app/widgets/modern_action_card.dart';
 import 'package:law_app/widgets/legal_tip_card.dart';
 import 'package:law_app/screens/library_screen.dart';
+import 'package:law_app/screens/find_lawyer_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -474,15 +476,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   mainAxisSpacing: 16,
                                   childAspectRatio: 1.1,
                                   physics: NeverScrollableScrollPhysics(),
-                                  children: _filteredQuickActions
-                                      .map((action) => ModernActionCard(
-                                            icon: action['icon'],
-                                            title: action['title'],
-                                            subtitle: action['subtitle'],
-                                            gradient: action['gradient'],
-                                            onTap: action['onTap'],
-                                          ))
-                                      .toList(),
+                                  children: _filteredQuickActions.map((action) {
+  VoidCallback? actionTap;
+
+  if (action['title'] == 'Find Lawyer') {
+    actionTap = () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const FindLawyerScreen()),
+      );
+    };
+  } else if (action['title'] == 'AI Legal Chat') {
+    actionTap = () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ChatScreen()),
+      );
+    };
+  } else {
+    actionTap = () {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${action['title']} coming soon')),
+      );
+    };
+  }
+
+  return ModernActionCard(
+    icon: action['icon'],
+    title: action['title'],
+    subtitle: action['subtitle'],
+    gradient: action['gradient'],
+    onTap: actionTap,
+  );
+}).toList(),
+
                                 ),
                         ),
                         SizedBox(height: 40),
