@@ -5,6 +5,7 @@ import 'chat_screen.dart';
 import 'library_screen.dart';
 import 'emergency_screen.dart';
 import 'profile_screen.dart';
+import 'find_lawyer_screen.dart';
 import '/widgets/modern_sos_button.dart';
 
 class MainScreen extends StatefulWidget {
@@ -15,13 +16,14 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _fabController;
-
-  final List<Widget> _screens = [
-    HomeScreen(),
-    ChatScreen(),
-    LibraryScreen(),
-    EmergencyScreen(),
-    ProfileScreen(),
+  
+  // Create GlobalKeys for each tab's navigator
+  final List<GlobalKey<NavigatorState>> _navigatorKeys = [
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
   ];
 
   @override
@@ -39,57 +41,159 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  // Handle back button for nested navigation
+  Future<bool> _onWillPop() async {
+    final isFirstRouteInCurrentTab = 
+        !await _navigatorKeys[_currentIndex].currentState!.maybePop();
+    
+    if (isFirstRouteInCurrentTab) {
+      // If we're on the first route of the current tab
+      if (_currentIndex != 0) {
+        // If not on home tab, go to home tab
+        setState(() => _currentIndex = 0);
+        return false;
+      }
+    }
+    // If we're on the first route of home tab, allow app to close
+    return isFirstRouteInCurrentTab;
+  }
+
+  // Get the appropriate screen for each tab and route
+  Widget _getScreenForIndex(int index, RouteSettings routeSettings) {
+    switch (index) {
+      case 0: // Home Tab
+        switch (routeSettings.name) {
+          case '/find-lawyer':
+            return FindLawyerScreen();
+          case '/':
+          default:
+            return HomeScreen();
+        }
+      case 1: // Chat Tab
+        return ChatScreen();
+      case 2: // Library Tab
+        return LibraryScreen();
+      case 3: // Emergency Tab
+        return EmergencyScreen();
+      case 4: // Profile Tab
+        return ProfileScreen();
+      default:
+        return HomeScreen();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Color(0xFF1A1D3A), // Your color
-        selectedItemColor: Color(0xFF00D4FF),
-        unselectedItemColor: Colors.white38,
-        elevation: 0,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        onTap: (index) {
-          setState(() => _currentIndex = index);
-          HapticFeedback.lightImpact();
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: _buildNavIcon(Icons.home, 0),
-            label: '',
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        body: Stack(
+          children: List.generate(5, (index) {
+            return Offstage(
+              offstage: _currentIndex != index,
+              child: Navigator(
+                key: _navigatorKeys[index],
+                onGenerateRoute: (routeSettings) {
+                  return MaterialPageRoute(
+                    builder: (context) => _getScreenForIndex(index, routeSettings),
+                    settings: routeSettings,
+                  );
+                },
+              ),
+            );
+          }),
+        ),
+        bottomNavigationBar: Theme(
+          data: Theme.of(context).copyWith(
+            // Remove the splash effect completely
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            // Customize the bottom navigation bar theme
+            bottomNavigationBarTheme: BottomNavigationBarThemeData(
+              backgroundColor: Color(0xFF1A1D3A),
+              selectedItemColor: Color(0xFF00D4FF),
+              unselectedItemColor: Colors.white38,
+              elevation: 0,
+              showSelectedLabels: false,
+              showUnselectedLabels: false,
+              type: BottomNavigationBarType.fixed,
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: _buildNavIcon(Icons.chat_bubble, 1),
-            label: '',
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Color(0xFF1A1D3A),
+            selectedItemColor: Color(0xFF00D4FF),
+            unselectedItemColor: Colors.white38,
+            elevation: 0,
+            showSelectedLabels: false,
+            showUnselectedLabels: false,
+            // Enable material state to control individual item effects
+            enableFeedback: true,
+            onTap: (index) {
+              print('Bottom nav tapped: $index'); // Debug print
+              setState(() => _currentIndex = index);
+              HapticFeedback.lightImpact();
+            },
+            items: [
+              BottomNavigationBarItem(
+                icon: _buildNavIcon(Icons.home, 0),
+                label: '',
+              ),
+              BottomNavigationBarItem(
+                icon: _buildNavIcon(Icons.chat_bubble, 1),
+                label: '',
+              ),
+              BottomNavigationBarItem(
+                icon: _buildNavIcon(Icons.library_books, 2),
+                label: '',
+              ),
+              BottomNavigationBarItem(
+                icon: _buildNavIcon(Icons.emergency, 3),
+                label: '',
+              ),
+              BottomNavigationBarItem(
+                icon: _buildNavIcon(Icons.person, 4),
+                label: '',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: _buildNavIcon(Icons.library_books, 2),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: _buildNavIcon(Icons.emergency, 3),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: _buildNavIcon(Icons.person, 4),
-            label: '',
-          ),
-        ],
+        ),
+        floatingActionButton: _currentIndex == 0 ? ModernSOSButton() : null,
       ),
-      floatingActionButton: _currentIndex == 0 ? ModernSOSButton() : null,
     );
   }
 
+  // FIXED: Removed the problematic InkWell that was intercepting taps
   Widget _buildNavIcon(IconData icon, int index) {
     bool isSelected = _currentIndex == index;
-    return Icon(
-      icon,
-      size: 30, // Make icons larger for a bolder look
-      color: isSelected ? Color(0xFF00D4FF) : Colors.white38,
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 200),
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isSelected ? Color(0xFF00D4FF).withOpacity(0.15) : Colors.transparent,
+        borderRadius: BorderRadius.circular(25),
+        border: isSelected
+            ? Border.all(color: Color(0xFF00D4FF).withOpacity(0.3), width: 1)
+            : null,
+      ),
+      child: Icon(
+        icon,
+        size: 28,
+        color: isSelected ? Color(0xFF00D4FF) : Colors.white38,
+      ),
     );
+  }
+}
+
+// Extension to provide easy navigation methods
+extension MainScreenNavigation on BuildContext {
+  void navigateToFindLawyer() {
+    Navigator.of(this).pushNamed('/find-lawyer');
+  }
+  
+  void navigateToHome() {
+    Navigator.of(this).pushNamedAndRemoveUntil('/', (route) => false);
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:law_app/widgets/modern_action_card.dart';
 import 'package:law_app/widgets/legal_tip_card.dart';
 import 'package:law_app/screens/library_screen.dart';
 import 'package:law_app/screens/find_lawyer_screen.dart';
+import 'package:law_app/screens/emergency_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -236,6 +237,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     }),
                     _buildMenuItem(Icons.phone_outlined, 'Helplines', 4, false, () {
                       _toggleMenu();
+                       Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => EmergencyScreen()),
+                      );
                       // TODO: Replace with your actual page
                     }),
                     _buildMenuItem(Icons.article_outlined, 'Legal Templates', 5, false, () {
