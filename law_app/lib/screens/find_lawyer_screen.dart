@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 
 class FindLawyerScreen extends StatefulWidget {
@@ -112,6 +113,80 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
     super.dispose();
   }
 
+  // Helper function to extract clean lawyer name
+  String _extractLawyerName(String fullText) {
+    List<String> patterns = [
+      'Address:',
+      'Office:',
+      'Chamber:',
+      'Residence:',
+      '\n',
+      '  ', // Double space
+    ];
+    
+    String cleanName = fullText;
+    for (String pattern in patterns) {
+      if (cleanName.contains(pattern)) {
+        cleanName = cleanName.split(pattern)[0];
+        break;
+      }
+    }
+    
+    cleanName = cleanName.trim();
+    cleanName = cleanName.replaceAll(RegExp(r'\s+'), ' ');
+    
+    return cleanName;
+  }
+
+  // Helper function to extract address
+  String _extractAddress(String fullText) {
+    List<String> patterns = ['Address:', 'Office:', 'Chamber:', 'Residence:'];
+    
+    for (String pattern in patterns) {
+      if (fullText.contains(pattern)) {
+        String address = fullText.split(pattern)[1];
+        return address.trim();
+      }
+    }
+    
+    List<String> lines = fullText.split('\n');
+    if (lines.length > 1) {
+      return lines.sublist(1).join(' ').trim();
+    }
+    
+    return 'Address not available';
+  }
+
+  // Phone call functionality
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+    
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: cleanNumber,
+    );
+    
+    try {
+      if (await canLaunchUrl(launchUri)) {
+        await launchUrl(launchUri);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not launch phone app'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error making call: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _getCurrentLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -138,7 +213,6 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
     });
 
     try {
-      // Replace with your actual backend URL
       final response = await http.get(Uri.parse('https://law-and-order-app.onrender.com/lawyers'));
       
       if (response.statusCode == 200) {
@@ -179,10 +253,13 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
   void _applyFilters() {
     setState(() {
       _filteredLawyers = _lawyers.where((lawyer) {
-        bool matchesSearch = _searchController.text.isEmpty ||
-            (lawyer['name']?.toLowerCase()?.contains(_searchController.text.toLowerCase()) ?? false) ||
-            (lawyer['expertise']?.toLowerCase()?.contains(_searchController.text.toLowerCase()) ?? false) ||
-            (lawyer['city']?.toLowerCase()?.contains(_searchController.text.toLowerCase()) ?? false);
+        String searchText = _searchController.text.toLowerCase();
+        String lawyerName = _extractLawyerName(lawyer['name'] ?? '').toLowerCase();
+        
+        bool matchesSearch = searchText.isEmpty ||
+            lawyerName.contains(searchText) ||
+            (lawyer['expertise']?.toLowerCase()?.contains(searchText) ?? false) ||
+            (lawyer['city']?.toLowerCase()?.contains(searchText) ?? false);
 
         bool matchesExpertise = _selectedExpertise == 'All' ||
             lawyer['expertise'] == _selectedExpertise;
@@ -238,7 +315,11 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
+          isScrollControlled: true,
           builder: (context) => Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+            ),
             padding: EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -253,21 +334,30 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                   ),
                 ),
                 SizedBox(height: 16),
-                ...options.map((option) => ListTile(
-                  title: Text(
-                    option,
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  leading: Radio<String>(
-                    value: option,
-                    groupValue: selected,
-                    onChanged: (value) {
-                      onSelected(value!);
-                      Navigator.pop(context);
+                Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    itemBuilder: (context, index) {
+                      String option = options[index];
+                      return ListTile(
+                        title: Text(
+                          option,
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        leading: Radio<String>(
+                          value: option,
+                          groupValue: selected,
+                          onChanged: (value) {
+                            onSelected(value!);
+                            Navigator.pop(context);
+                          },
+                          activeColor: Color(0xFF00D4FF),
+                        ),
+                      );
                     },
-                    activeColor: Color(0xFF00D4FF),
                   ),
-                )).toList(),
+                ),
               ],
             ),
           ),
@@ -406,6 +496,10 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
   }
 
   Widget _buildLawyerCard(Map<String, dynamic> lawyer) {
+    String fullNameText = lawyer['name'] ?? 'Unknown Lawyer';
+    String cleanName = _extractLawyerName(fullNameText);
+    String address = _extractAddress(fullNameText);
+    
     return Container(
       margin: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
       decoration: BoxDecoration(
@@ -457,15 +551,16 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                         children: [
                           Expanded(
                             child: Text(
-                              lawyer['name'] ?? 'Unknown Lawyer',
+                              cleanName,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          // Show verified badge
                           if (lawyer['verified'] == true)
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -489,7 +584,6 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                                 ],
                               ),
                             ),
-                          // Show senior advocate badge
                           if (lawyer['senior_advocate'] == true)
                             Container(
                               margin: EdgeInsets.only(left: 8),
@@ -520,7 +614,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                       ),
                       SizedBox(height: 4),
                       Text(
-                        '${lawyer['experience'] ?? 0} years experience • ${lawyer['court'] ?? 'Supreme Court of India'}',
+                        '${lawyer['experience'] ?? 0} years experience',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.7),
                           fontSize: 12,
@@ -546,11 +640,15 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
               children: [
                 Icon(Icons.location_on, color: Colors.white.withOpacity(0.7), size: 16),
                 SizedBox(width: 4),
-                Text(
-                  lawyer['city'] ?? 'Unknown',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 12,
+                Expanded(
+                  child: Text(
+                    lawyer['city'] ?? 'Unknown',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 SizedBox(width: 16),
@@ -580,7 +678,10 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      _showLawyerProfile(lawyer);
+                      Map<String, dynamic> lawyerWithCleanData = Map.from(lawyer);
+                      lawyerWithCleanData['clean_name'] = cleanName;
+                      lawyerWithCleanData['address'] = address;
+                      _showLawyerProfile(lawyerWithCleanData);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -617,6 +718,9 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
   }
 
   void _showLawyerProfile(Map<String, dynamic> lawyer) {
+    String cleanName = lawyer['clean_name'] ?? _extractLawyerName(lawyer['name'] ?? '');
+    String address = lawyer['address'] ?? _extractAddress(lawyer['name'] ?? '');
+    
     showModalBottomSheet(
       context: context,
       backgroundColor: Color(0xFF1A1D3A),
@@ -646,7 +750,8 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                   ),
                 ),
                 SizedBox(height: 20),
-                // Profile header with photo and basic info
+                
+                // Profile header
                 Row(
                   children: [
                     Container(
@@ -676,7 +781,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                             children: [
                               Expanded(
                                 child: Text(
-                                  lawyer['name'] ?? 'Unknown Lawyer',
+                                  cleanName,
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 20,
@@ -763,7 +868,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                 SizedBox(height: 16),
                 _buildProfileSection('Court', lawyer['court'] ?? 'Supreme Court of India'),
                 SizedBox(height: 16),
-                _buildProfileSection('Location', '${lawyer['city'] ?? 'Unknown'}, ${lawyer['state'] ?? 'India'}'),
+                _buildProfileSection('Address', address),
                 SizedBox(height: 16),
                 _buildProfileSection('Enrollment Number', lawyer['enrollment_number'] ?? 'Not available'),
                 SizedBox(height: 16),
@@ -819,7 +924,17 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          // Call functionality
+                          String phoneNumber = lawyer['phone'] ?? '';
+                          if (phoneNumber.isNotEmpty) {
+                            _makePhoneCall(phoneNumber);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Phone number not available'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
                         },
                         icon: Icon(Icons.phone),
                         label: Text('Call'),
@@ -890,7 +1005,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
   void _bookConsultation(Map<String, dynamic> lawyer) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Booking consultation with ${lawyer['name']}...'),
+        content: Text('Booking consultation with ${_extractLawyerName(lawyer['name'] ?? '')}...'),
         backgroundColor: Color(0xFF4ECDC4),
         behavior: SnackBarBehavior.floating,
       ),
@@ -947,11 +1062,12 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
               height: 50,
               child: GestureDetector(
                 onTap: () {
+                  String cleanName = _extractLawyerName(lawyer['name'] ?? '');
                   showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
                       backgroundColor: Color(0xFF1A1D3A),
-                      title: Text(lawyer['name'] ?? 'Unknown Lawyer', style: TextStyle(color: Colors.white)),
+                      title: Text(cleanName, style: TextStyle(color: Colors.white)),
                       content: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -976,7 +1092,10 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                         TextButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            _showLawyerProfile(lawyer);
+                            Map<String, dynamic> lawyerWithCleanData = Map.from(lawyer);
+                            lawyerWithCleanData['clean_name'] = cleanName;
+                            lawyerWithCleanData['address'] = _extractAddress(lawyer['name'] ?? '');
+                            _showLawyerProfile(lawyerWithCleanData);
                           },
                           child: Text('View Profile', style: TextStyle(color: Color(0xFF4ECDC4))),
                         ),
@@ -1047,7 +1166,6 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
             IconButton(
               icon: Icon(Icons.my_location, color: Color(0xFF00D4FF)),
               onPressed: () {
-                // Find nearby lawyers
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Finding lawyers near you...'),
@@ -1182,5 +1300,6 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
     );
   }
 }
+
 
 
