@@ -14,11 +14,7 @@ dependencies:
   flutter_map: ^6.0.1
   latlong2: ^0.9.0
   geolocator: ^10.1.0
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.15.3
-  js: ^0.7.1
   shared_preferences: ^2.2.2
-  google_sign_in: ^6.2.1
   url_launcher: ^6.2.4 
 
 dev_dependencies:

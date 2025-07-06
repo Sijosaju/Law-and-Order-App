@@ -21,17 +21,15 @@ from math import radians, cos, sin, asin, sqrt
 # ────────────────────────────────────────────────────────────────────────────────
 #  ENV / LOGGING
 # ────────────────────────────────────────────────────────────────────────────────
-load_dotenv()                                              # Load .env variables
-
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s %(levelname)s %(message)s")
+load_dotenv()
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 # ────────────────────────────────────────────────────────────────────────────────
 #  FLASK APP INIT + CORS
 # ────────────────────────────────────────────────────────────────────────────────
 app = Flask(__name__)
-CORS(app)                                                  # Allow all origins
+CORS(app)
 
 # ────────────────────────────────────────────────────────────────────────────────
 #  MONGODB CONNECTION
@@ -52,11 +50,8 @@ else:
 # ────────────────────────────────────────────────────────────────────────────────
 #  FIREBASE ADMIN INITIALISATION
 # ────────────────────────────────────────────────────────────────────────────────
-def init_firebase_admin() -> firestore.Client | None:
-    """
-    Build a service-account credentials dict from .env and
-    initialise Firebase Admin. Returns Firestore client or None.
-    """
+def init_firebase_admin():
+    """Initialize Firebase Admin with environment variables"""
     try:
         cred_dict = {
             "type": "service_account",
@@ -76,7 +71,7 @@ def init_firebase_admin() -> firestore.Client | None:
         logger.error(f"❌ Firebase Admin init failed: {e}")
         return None
 
-fs = init_firebase_admin()   # Firestore client (optional use)
+fs = init_firebase_admin()
 
 # ────────────────────────────────────────────────────────────────────────────────
 #  UTILITY HELPERS
@@ -90,14 +85,12 @@ def validate_db_connection():
     except Exception as e:
         return False, str(e)
 
-
 def calculate_distance(lat1, lon1, lat2, lon2):
     """Haversine distance in KM."""
     lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
     dlat, dlon = lat2 - lat1, lon2 - lon1
     a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-    return 2 * asin(sqrt(a)) * 6371  # Earth radius
-
+    return 2 * asin(sqrt(a)) * 6371
 
 # ────────────────────────────────────────────────────────────────────────────────
 #  ROOT + HEALTH
@@ -108,7 +101,7 @@ def index():
         message="✅ Legal Library Backend Running!",
         endpoints={
             "acts": "/acts",
-            "articles": "/articles",
+            "articles": "/articles", 
             "cases": "/cases",
             "lawyers": "/lawyers",
             "chat": "/chat",
@@ -120,28 +113,30 @@ def index():
         },
     )
 
-
 @app.route("/health")
 def health():
     ok, msg = validate_db_connection()
-    return jsonify(status="healthy" if ok else "unhealthy",
-                   database=msg,
-                   server_time=str(os.times()))
-
+    return jsonify(
+        status="healthy" if ok else "unhealthy",
+        database=msg,
+        firebase_admin=fs is not None,
+        environment_vars={
+            'mongo_uri': bool(os.getenv('MONGO_URI')),
+            'firebase_project_id': bool(os.getenv('FIREBASE_PROJECT_ID')),
+            'openrouter_key': bool(os.getenv('OPENROUTER_API_KEY'))
+        }
+    )
 
 @app.route("/ping")
 def ping():
-    return jsonify(message="pong", timestamp=str(os.times()))
+    return jsonify(message="pong")
 
 # ────────────────────────────────────────────────────────────────────────────────
 #  AUTHENTICATION ROUTES (Firebase Admin)
 # ────────────────────────────────────────────────────────────────────────────────
 @app.route("/auth/signup", methods=["POST"])
 def signup():
-    """
-    Expects JSON: {name, email, password}
-    Creates user in Firebase Auth & Firestore (optional) and returns UID.
-    """
+    """Create user with email/password in Firebase Auth"""
     try:
         data = request.get_json(force=True)
         user = auth.create_user(
@@ -149,42 +144,51 @@ def signup():
             password=data["password"],
             display_name=data.get("name", ""),
         )
-        # Optional: store profile in Firestore
+        
+        # Store additional user data in Firestore
         if fs:
             fs.collection("users").document(user.uid).set({
                 "uid": user.uid,
                 "email": user.email,
                 "name": user.display_name,
             })
-        return jsonify(success=True, uid=user.uid, email=user.email)
+        
+        return jsonify(success=True, uid=user.uid, email=user.email, name=user.display_name)
     except Exception as e:
         logger.error(f"Signup error: {e}")
         return jsonify(success=False, message=str(e)), 400
 
-
 @app.route("/auth/login", methods=["POST"])
 def login():
-    """
-    Email/password verification MUST be done client-side with Firebase SDK.
-    Our server will instead receive an ID token and exchange it for session info
-    OR create a custom token that the client can use.
-    For a simple backend-only demo, we accept {uid} and return a custom token.
-    """
+    """Verify email exists and create custom token"""
     try:
-        uid = request.json.get("uid")  # Provided by your client
-        if not uid:
-            return jsonify(success=False, message="uid required"), 400
-
-        custom_token = auth.create_custom_token(uid).decode("utf-8")
-        return jsonify(success=True, customToken=custom_token)
+        data = request.get_json(force=True)
+        email = data.get("email")
+        password = data.get("password")  # Note: Firebase Admin can't verify passwords directly
+        
+        if not email:
+            return jsonify(success=False, message="Email required"), 400
+            
+        # Get user by email
+        user = auth.get_user_by_email(email)
+        
+        # Create custom token (password verification would need client-side Firebase SDK)
+        custom_token = auth.create_custom_token(user.uid).decode("utf-8")
+        
+        return jsonify(
+            success=True, 
+            customToken=custom_token,
+            uid=user.uid,
+            email=user.email,
+            name=user.display_name
+        )
     except Exception as e:
         logger.error(f"Login error: {e}")
-        return jsonify(success=False, message=str(e)), 400
-
+        return jsonify(success=False, message="Invalid credentials"), 401
 
 @app.route("/auth/verify-token", methods=["POST"])
 def verify_token():
-    """Client sends ID token; we verify and return uid & claims."""
+    """Verify Firebase ID token"""
     try:
         id_token = request.json.get("idToken")
         decoded = auth.verify_id_token(id_token)
@@ -193,9 +197,8 @@ def verify_token():
         logger.error(f"Token verify error: {e}")
         return jsonify(success=False, message="Invalid token"), 401
 
-
 # ────────────────────────────────────────────────────────────────────────────────
-#  DATA ROUTES  (Acts, Articles, Cases, Lawyers)
+#  DATA ROUTES
 # ────────────────────────────────────────────────────────────────────────────────
 @app.route("/acts")
 def get_acts():
@@ -207,7 +210,6 @@ def get_acts():
     except Exception as e:
         logger.error(e)
         return jsonify(error=str(e)), 500
-
 
 @app.route("/acts/<act_id>")
 def get_act_sections(act_id):
@@ -225,7 +227,6 @@ def get_act_sections(act_id):
         logger.error(e)
         return jsonify(error=str(e)), 500
 
-
 @app.route("/articles")
 def get_articles():
     try:
@@ -235,7 +236,6 @@ def get_articles():
     except Exception as e:
         logger.error(e)
         return jsonify(error=str(e)), 500
-
 
 @app.route("/cases")
 def get_cases():
@@ -247,18 +247,18 @@ def get_cases():
         logger.error(e)
         return jsonify(error=str(e)), 500
 
-
 @app.route("/lawyers")
 def get_lawyers():
     try:
         if db is None:
             return jsonify(error="DB not connected"), 500
 
-        # Filtering params
-        q, city, exp, min_rating = (request.args.get("search", "").strip(),
-                                    request.args.get("city"),
-                                    request.args.get("expertise"),
-                                    request.args.get("min_rating", type=float))
+        q, city, exp, min_rating = (
+            request.args.get("search", "").strip(),
+            request.args.get("city"),
+            request.args.get("expertise"),
+            request.args.get("min_rating", type=float)
+        )
         lat, lng = request.args.get("lat", type=float), request.args.get("lng", type=float)
         radius = request.args.get("radius", type=float, default=50)
 
@@ -278,7 +278,7 @@ def get_lawyers():
             ]
 
         lawyers = list(db.lawyers.find(query, {"_id": 0}))
-        # Filter by distance
+        
         if lat and lng:
             lawyers = [
                 {**lw, "distance": calculate_distance(lat, lng, lw["latitude"], lw["longitude"])}
@@ -287,14 +287,12 @@ def get_lawyers():
                 and calculate_distance(lat, lng, lw["latitude"], lw["longitude"]) <= radius
             ]
             lawyers.sort(key=lambda x: x["distance"])
+        
         return jsonify(lawyers)
     except Exception as e:
         logger.error(e)
         return jsonify(error=str(e)), 500
 
-# ────────────────────────────────────────────────────────────────────────────────
-#  AI CHAT ENDPOINT
-# ────────────────────────────────────────────────────────────────────────────────
 @app.route("/chat", methods=["POST", "OPTIONS"])
 def chat():
     if request.method == "OPTIONS":
@@ -343,9 +341,6 @@ def chat():
         logger.error(e)
         return jsonify(reply="❌ Server error"), 500
 
-# ────────────────────────────────────────────────────────────────────────────────
-#  DEBUG ROUTES
-# ────────────────────────────────────────────────────────────────────────────────
 @app.route("/debug/db-status")
 def debug_db_status():
     ok, msg = validate_db_connection()
@@ -354,31 +349,23 @@ def debug_db_status():
     collections = db.list_collection_names()
     return jsonify(status="connected", collections=collections)
 
-
-# ────────────────────────────────────────────────────────────────────────────────
-#  ERROR HANDLERS
-# ────────────────────────────────────────────────────────────────────────────────
 @app.errorhandler(404)
 def not_found(e):
     return jsonify(error="Endpoint not found"), 404
-
 
 @app.errorhandler(500)
 def server_error(e):
     logger.error(e)
     return jsonify(error="Internal server error"), 500
 
-
-# ────────────────────────────────────────────────────────────────────────────────
-#  ENTRY-POINT
-# ────────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
-    logger.info(f"🚀 Flask API running on 0.0.0.0:{port}  |  Debug={debug_mode}")
+    logger.info(f"🚀 Flask API running on 0.0.0.0:{port} | Debug={debug_mode}")
     logger.info(f"Mongo connected: {db is not None}")
-    logger.info(f"Firebase Admin  : {fs is not None}")
+    logger.info(f"Firebase Admin: {fs is not None}")
     app.run(host="0.0.0.0", port=port, debug=debug_mode)
+
 
 
 

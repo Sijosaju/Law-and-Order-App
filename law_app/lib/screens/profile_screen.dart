@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:law_app/widgets/profile_option.dart';
 import 'package:law_app/screens/login_screen.dart';
+import 'package:law_app/services/auth_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -26,7 +26,7 @@ class ProfileScreen extends StatelessWidget {
     );
 
     if (shouldLogout == true) {
-      await FirebaseAuth.instance.signOut();
+      await AuthService().signOut();
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => LoginScreen()),
         (route) => false,
@@ -36,9 +36,6 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Optionally, you can fetch the user's name/email from FirebaseAuth here
-    final user = FirebaseAuth.instance.currentUser;
-
     return Scaffold(
       appBar: AppBar(
         title: Text('Profile'),
@@ -83,20 +80,50 @@ class ProfileScreen extends StatelessWidget {
                 child: Icon(Icons.person, size: 60, color: Colors.white),
               ),
               SizedBox(height: 24),
-              Text(
-                user?.displayName ?? 'Legal Help User',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              Text(
-                user?.email ?? 'user@legalhelpindia.com',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white60,
-                ),
+              FutureBuilder<Map<String, String>>(
+                future: AuthService().getUserData(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    return Column(
+                      children: [
+                        Text(
+                          snapshot.data!['name'] ?? 'Legal Help User',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          snapshot.data!['email'] ?? 'user@legalhelpindia.com',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white60,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Column(
+                    children: [
+                      Text(
+                        'Loading...',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        'Loading...',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white60,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               SizedBox(height: 40),
               ProfileOption(
@@ -135,7 +162,6 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: 'App version and information',
                 onTap: () {},
               ),
-              // Logout option
               ProfileOption(
                 icon: Icons.logout,
                 title: 'Logout',
@@ -149,3 +175,4 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 }
+

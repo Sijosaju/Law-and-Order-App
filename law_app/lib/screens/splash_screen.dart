@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:law_app/screens/main_screen.dart';
 import 'package:law_app/screens/login_screen.dart';
+import 'package:law_app/services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -52,9 +52,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   }
 
   Future<void> _checkAuthAndNavigate() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      // User is signed in
+    bool isLoggedIn = await AuthService().isLoggedIn();
+    
+    if (isLoggedIn) {
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
@@ -66,7 +66,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         ),
       );
     } else {
-      // User is NOT signed in
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
@@ -246,3 +245,4 @@ class AnimatedParticle extends StatelessWidget {
     );
   }
 }
+

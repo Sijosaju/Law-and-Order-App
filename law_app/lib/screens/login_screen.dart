@@ -14,7 +14,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
   bool _isLoading = false;
-  bool _isGoogleLoading = false;
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -24,19 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordController.text,
     );
     setState(() => _isLoading = false);
-    if (result['success']) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => MainScreen()));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  Future<void> _loginWithGoogle() async {
-    setState(() => _isGoogleLoading = true);
-    final result = await _authService.signInWithGoogle();
-    setState(() => _isGoogleLoading = false);
     if (result['success']) {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => MainScreen()));
     } else {
@@ -111,39 +97,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         : Text('Login', style: TextStyle(fontSize: 16)),
                   ),
                 ),
-                SizedBox(height: 16),
-
-                // Google Sign-In Button (image-only, fully clickable)
-                SizedBox(
-                  width: double.infinity,
-                  child: GestureDetector(
-                    onTap: _isGoogleLoading ? null : _loginWithGoogle,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Opacity(
-                          opacity: _isGoogleLoading ? 0.5 : 1,
-                          child: Image.asset(
-                            'assets/google_logo.png', // Your "Sign in with Google" button image
-                            fit: BoxFit.contain,
-                            width: 220, // Adjust width as needed for your asset
-                            height: 48,
-                          ),
-                        ),
-                        if (_isGoogleLoading)
-                          Positioned(
-                            right: 16,
-                            child: SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-
                 SizedBox(height: 16),
 
                 // Signup Link
