@@ -97,7 +97,7 @@ def is_strong_password(password):
     return True, "Password is strong"
 
 def send_email_smtp(to_email, subject, html_content):
-    """Send email using SMTP (Gmail)"""
+    """Send email using SMTP (Gmail) with proper UTF-8 encoding"""
     try:
         smtp_server = "smtp.gmail.com"
         smtp_port = 587
@@ -113,8 +113,8 @@ def send_email_smtp(to_email, subject, html_content):
         message["From"] = sender_email
         message["To"] = to_email
         
-        # Fix encoding issue
-        html_part = MIMEText(html_content.encode('utf-8'), "html", 'utf-8')
+        # Fix encoding issue - properly encode HTML content
+        html_part = MIMEText(html_content, "html", "utf-8")
         message.attach(html_part)
         
         server = smtplib.SMTP(smtp_server, smtp_port)
@@ -131,12 +131,14 @@ def send_email_smtp(to_email, subject, html_content):
         return False
 
 
+
 def send_verification_email(email, name, verification_link):
-    """Send email verification"""
+    """Send email verification with clean HTML"""
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
+        <meta charset="UTF-8">
         <style>
             body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }}
             .container {{ max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; }}
@@ -168,6 +170,7 @@ def send_verification_email(email, name, verification_link):
     """
     
     return send_email_smtp(email, "Verify Your LexAid Account", html_content)
+
 
 def send_password_reset_email(email, name, reset_link):
     """Send password reset email"""
