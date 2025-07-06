@@ -113,7 +113,8 @@ def send_email_smtp(to_email, subject, html_content):
         message["From"] = sender_email
         message["To"] = to_email
         
-        html_part = MIMEText(html_content, "html")
+        # Fix encoding issue
+        html_part = MIMEText(html_content.encode('utf-8'), "html", 'utf-8')
         message.attach(html_part)
         
         server = smtplib.SMTP(smtp_server, smtp_port)
@@ -128,6 +129,7 @@ def send_email_smtp(to_email, subject, html_content):
     except Exception as e:
         logger.error(f"SMTP email failed: {e}")
         return False
+
 
 def send_verification_email(email, name, verification_link):
     """Send email verification"""
