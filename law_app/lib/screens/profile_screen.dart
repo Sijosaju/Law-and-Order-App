@@ -27,10 +27,11 @@ class ProfileScreen extends StatelessWidget {
 
     if (shouldLogout == true) {
       await AuthService().signOut();
-      Navigator.of(context).pushAndRemoveUntil(
+     Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
   MaterialPageRoute(builder: (_) => LoginScreen()),
-  (Route<dynamic> route) => false,
+  (Route route) => false,
 );
+
 
     }
   }
