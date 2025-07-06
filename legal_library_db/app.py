@@ -45,7 +45,7 @@ if mongo_uri:
     except Exception as e:
         logger.error(f"❌ MongoDB connection failed: {e}")
 else:
-    logger.warning("⚠️  MONGO_URI missing in .env")
+    logger.warning("⚠️ MONGO_URI missing in .env")
 
 # ────────────────────────────────────────────────────────────────────────────────
 #  FIREBASE ADMIN INITIALISATION
@@ -101,7 +101,7 @@ def index():
         message="✅ Legal Library Backend Running!",
         endpoints={
             "acts": "/acts",
-            "articles": "/articles", 
+            "articles": "/articles",
             "cases": "/cases",
             "lawyers": "/lawyers",
             "chat": "/chat",
@@ -164,7 +164,7 @@ def login():
     try:
         data = request.get_json(force=True)
         email = data.get("email")
-        password = data.get("password")  # Note: Firebase Admin can't verify passwords directly
+        password = data.get("password")
         
         if not email:
             return jsonify(success=False, message="Email required"), 400
@@ -172,7 +172,7 @@ def login():
         # Get user by email
         user = auth.get_user_by_email(email)
         
-        # Create custom token (password verification would need client-side Firebase SDK)
+        # Create custom token
         custom_token = auth.create_custom_token(user.uid).decode("utf-8")
         
         return jsonify(
@@ -365,7 +365,6 @@ if __name__ == "__main__":
     logger.info(f"Mongo connected: {db is not None}")
     logger.info(f"Firebase Admin: {fs is not None}")
     app.run(host="0.0.0.0", port=port, debug=debug_mode)
-
 
 
 
