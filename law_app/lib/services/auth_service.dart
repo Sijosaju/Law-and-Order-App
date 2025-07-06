@@ -3,10 +3,39 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String baseUrl = 'https://law-and-order-app.onrender.com'; // Update with your backend URL
+  static const String baseUrl = 'https://law-and-order-app.onrender.com';
+
+  // Email validation helper
+  bool isValidEmail(String email) {
+    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(email);
+  }
+
+  // Password strength validation
+  Map<String, dynamic> validatePassword(String password) {
+    if (password.length < 6) {
+      return {'isValid': false, 'message': 'Password must be at least 6 characters'};
+    }
+    if (!RegExp(r'[A-Za-z]').hasMatch(password)) {
+      return {'isValid': false, 'message': 'Password must contain at least one letter'};
+    }
+    if (!RegExp(r'\d').hasMatch(password)) {
+      return {'isValid': false, 'message': 'Password must contain at least one number'};
+    }
+    return {'isValid': true, 'message': 'Password is strong'};
+  }
 
   Future<Map<String, dynamic>> signUp(String name, String email, String password) async {
     try {
+      // Client-side validation
+      if (!isValidEmail(email)) {
+        return {'success': false, 'message': 'Invalid email format'};
+      }
+
+      final passwordCheck = validatePassword(password);
+      if (!passwordCheck['isValid']) {
+        return {'success': false, 'message': passwordCheck['message']};
+      }
+
       final response = await http.post(
         Uri.parse('$baseUrl/auth/signup'),
         headers: {'Content-Type': 'application/json'},
@@ -15,13 +44,26 @@ class AuthService {
           'email': email,
           'password': password,
         }),
-      );
+      ).timeout(Duration(seconds: 30));
 
       final data = json.decode(response.body);
-      if (data['success']) {
-        await _saveUserSession(data);
+      
+      if (response.statusCode == 200 && data['success']) {
+        // Don't save session yet - user needs to verify email first
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Account created! Please check your email for verification.',
+          'uid': data['uid'],
+          'email': data['email'],
+          'name': data['name'],
+          'requiresVerification': true
+        };
+      } else {
+        return {
+          'success': false, 
+          'message': data['message'] ?? 'Signup failed'
+        };
       }
-      return data;
     } catch (e) {
       return {'success': false, 'message': 'Network error: ${e.toString()}'};
     }
@@ -29,8 +71,11 @@ class AuthService {
 
   Future<Map<String, dynamic>> signIn(String email, String password) async {
     try {
-      // For now, we'll use a simplified approach
-      // In production, you'd implement proper email/password verification
+      // Client-side validation
+      if (!isValidEmail(email)) {
+        return {'success': false, 'message': 'Invalid email format'};
+      }
+
       final response = await http.post(
         Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
@@ -38,12 +83,57 @@ class AuthService {
           'email': email,
           'password': password,
         }),
-      );
+      ).timeout(Duration(seconds: 30));
 
       final data = json.decode(response.body);
-      if (data['success']) {
+      
+      if (response.statusCode == 200 && data['success']) {
         await _saveUserSession(data);
+        return data;
+      } else {
+        return {
+          'success': false, 
+          'message': data['message'] ?? 'Login failed',
+          'email_not_verified': data['email_not_verified'] ?? false
+        };
       }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    try {
+      if (!isValidEmail(email)) {
+        return {'success': false, 'message': 'Invalid email format'};
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/forgot-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email}),
+      ).timeout(Duration(seconds: 30));
+
+      final data = json.decode(response.body);
+      return data;
+    } catch (e) {
+      return {'success': false, 'message': 'Network error: ${e.toString()}'};
+    }
+  }
+
+  Future<Map<String, dynamic>> resendVerification(String email) async {
+    try {
+      if (!isValidEmail(email)) {
+        return {'success': false, 'message': 'Invalid email format'};
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/resend-verification'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email}),
+      ).timeout(Duration(seconds: 30));
+
+      final data = json.decode(response.body);
       return data;
     } catch (e) {
       return {'success': false, 'message': 'Network error: ${e.toString()}'};
@@ -57,6 +147,7 @@ class AuthService {
     await prefs.setString('user_email', userData['email'] ?? '');
     await prefs.setString('user_name', userData['name'] ?? '');
     await prefs.setBool('isLoggedIn', true);
+    await prefs.setBool('email_verified', userData['email_verified'] ?? false);
   }
 
   Future<bool> isLoggedIn() async {
