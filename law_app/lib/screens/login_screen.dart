@@ -30,10 +30,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
     
     if (result['success']) {
-      Navigator.pushReplacement(
-        context, 
-        MaterialPageRoute(builder: (_) => MainScreen())
-      );
+    Navigator.of(context).pushAndRemoveUntil(
+  MaterialPageRoute(builder: (_) => MainScreen()),
+  (Route<dynamic> route) => false,
+);
+
     } else {
       // Handle email not verified error
       if (result['email_not_verified'] == true) {
