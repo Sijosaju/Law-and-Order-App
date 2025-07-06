@@ -1,326 +1,313 @@
+"""
+Flask-based Legal-Library API
+────────────────────────────
+• MongoDB for data (acts, articles, cases, lawyers)
+• Firebase Admin for authentication (signup, login, token verification)
+• .env for ALL secrets (Mongo URI, Firebase creds, OpenRouter key, etc.)
+"""
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
 from dotenv import load_dotenv
-import os
+import firebase_admin
+from firebase_admin import credentials, auth, firestore
 import requests
-import json
 import logging
+import os
+import json
+from math import radians, cos, sin, asin, sqrt
 
-# Load environment variables from .env
-load_dotenv()
+# ────────────────────────────────────────────────────────────────────────────────
+#  ENV / LOGGING
+# ────────────────────────────────────────────────────────────────────────────────
+load_dotenv()                                              # Load .env variables
 
-# Initialize Flask app
-app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO,
+                    format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# Connect to MongoDB
-mongo_uri = os.getenv("MONGO_URI")
-client = None
-db = None
+# ────────────────────────────────────────────────────────────────────────────────
+#  FLASK APP INIT + CORS
+# ────────────────────────────────────────────────────────────────────────────────
+app = Flask(__name__)
+CORS(app)                                                  # Allow all origins
 
+# ────────────────────────────────────────────────────────────────────────────────
+#  MONGODB CONNECTION
+# ────────────────────────────────────────────────────────────────────────────────
+mongo_uri = os.getenv("MONGO_URI")
+client, db = None, None
 if mongo_uri:
     try:
-        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
-        client.admin.command('ping')
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5_000)
+        client.admin.command("ping")
         db = client["legal_library"]
-        logger.info("✅ MongoDB connected successfully")
+        logger.info("✅ MongoDB connected")
     except Exception as e:
-        logger.error(f"❌ MongoDB connection failed: {str(e)}")
-        db = None
+        logger.error(f"❌ MongoDB connection failed: {e}")
 else:
-    logger.warning("⚠️ MONGO_URI not found in environment variables")
-    db = None
+    logger.warning("⚠️  MONGO_URI missing in .env")
 
-# ======================= UTILITY FUNCTIONS =======================
+# ────────────────────────────────────────────────────────────────────────────────
+#  FIREBASE ADMIN INITIALISATION
+# ────────────────────────────────────────────────────────────────────────────────
+def init_firebase_admin() -> firestore.Client | None:
+    """
+    Build a service-account credentials dict from .env and
+    initialise Firebase Admin. Returns Firestore client or None.
+    """
+    try:
+        cred_dict = {
+            "type": "service_account",
+            "project_id": os.getenv("FIREBASE_PROJECT_ID"),
+            "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID"),
+            "private_key": os.getenv("FIREBASE_PRIVATE_KEY").replace("\\n", "\n"),
+            "client_email": os.getenv("FIREBASE_CLIENT_EMAIL"),
+            "client_id": os.getenv("FIREBASE_CLIENT_ID"),
+            "auth_uri": os.getenv("FIREBASE_AUTH_URI"),
+            "token_uri": os.getenv("FIREBASE_TOKEN_URI"),
+        }
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
+        logger.info("✅ Firebase Admin initialised")
+        return firestore.client()
+    except Exception as e:
+        logger.error(f"❌ Firebase Admin init failed: {e}")
+        return None
 
+fs = init_firebase_admin()   # Firestore client (optional use)
+
+# ────────────────────────────────────────────────────────────────────────────────
+#  UTILITY HELPERS
+# ────────────────────────────────────────────────────────────────────────────────
 def validate_db_connection():
     if db is None:
         return False, "Database not connected"
     try:
-        db.admin.command('ping')
+        db.admin.command("ping")
         return True, "Connected"
     except Exception as e:
         return False, str(e)
 
+
 def calculate_distance(lat1, lon1, lat2, lon2):
-    """Calculate distance between two points in kilometers"""
-    from math import radians, cos, sin, asin, sqrt
-    
-    # Convert decimal degrees to radians
+    """Haversine distance in KM."""
     lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-    
-    # Haversine formula
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a))
-    r = 6371  # Radius of earth in kilometers
-    return c * r
+    dlat, dlon = lat2 - lat1, lon2 - lon1
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    return 2 * asin(sqrt(a)) * 6371  # Earth radius
 
-# ======================= ROUTES =======================
 
-@app.route('/')
+# ────────────────────────────────────────────────────────────────────────────────
+#  ROOT + HEALTH
+# ────────────────────────────────────────────────────────────────────────────────
+@app.route("/")
 def index():
-    return jsonify({
-        "message": "✅ Legal Library Backend is Running!",
-        "endpoints": {
+    return jsonify(
+        message="✅ Legal Library Backend Running!",
+        endpoints={
             "acts": "/acts",
-            "articles": "/articles", 
+            "articles": "/articles",
             "cases": "/cases",
             "lawyers": "/lawyers",
             "chat": "/chat",
-            "debug": "/debug/db-status"
-        }
-    })
-
-@app.route('/health')
-def health_check():
-    db_connected, db_message = validate_db_connection()
-    return jsonify({
-        "status": "healthy" if db_connected else "unhealthy",
-        "database": db_message,
-        "server_time": str(os.times()),
-        "message": "Server is running properly"
-    })
-
-@app.route('/ping')
-def ping():
-    return jsonify({
-        "message": "pong",
-        "timestamp": str(os.times()),
-        "server": "Flask Legal Library API"
-    })
-
-@app.route('/debug/db-status')
-def debug_db_status():
-    try:
-        if db is None:
-            return jsonify({
-                "status": "error",
-                "message": "Database not connected",
-                "mongo_uri_exists": bool(mongo_uri)
-            }), 500
-
-        db.admin.command('ping')
-        collections = db.list_collection_names()
-        acts_count = db.acts.count_documents({})
-        articles_count = db.articles.count_documents({})
-        cases_count = db.cases.count_documents({})
-        lawyers_count = db.lawyers.count_documents({}) if 'lawyers' in collections else 0
-
-        sample_act = db.acts.find_one({}, {'_id': 0}) if acts_count > 0 else None
-        sample_article = db.articles.find_one({}, {'_id': 0}) if articles_count > 0 else None
-        sample_case = db.cases.find_one({}, {'_id': 0}) if cases_count > 0 else None
-        sample_lawyer = db.lawyers.find_one({}, {'_id': 0}) if lawyers_count > 0 else None
-
-        return jsonify({
-            "status": "connected",
-            "database_name": db.name,
-            "collections": collections,
-            "document_counts": {
-                "acts": acts_count,
-                "articles": articles_count,
-                "cases": cases_count,
-                "lawyers": lawyers_count
+            "auth": {
+                "signup": "/auth/signup",
+                "login": "/auth/login",
+                "verify": "/auth/verify-token",
             },
-            "sample_data": {
-                "act": sample_act,
-                "article": sample_article,
-                "case": sample_case,
-                "lawyer": sample_lawyer
-            }
-        })
+        },
+    )
 
+
+@app.route("/health")
+def health():
+    ok, msg = validate_db_connection()
+    return jsonify(status="healthy" if ok else "unhealthy",
+                   database=msg,
+                   server_time=str(os.times()))
+
+
+@app.route("/ping")
+def ping():
+    return jsonify(message="pong", timestamp=str(os.times()))
+
+# ────────────────────────────────────────────────────────────────────────────────
+#  AUTHENTICATION ROUTES (Firebase Admin)
+# ────────────────────────────────────────────────────────────────────────────────
+@app.route("/auth/signup", methods=["POST"])
+def signup():
+    """
+    Expects JSON: {name, email, password}
+    Creates user in Firebase Auth & Firestore (optional) and returns UID.
+    """
+    try:
+        data = request.get_json(force=True)
+        user = auth.create_user(
+            email=data["email"],
+            password=data["password"],
+            display_name=data.get("name", ""),
+        )
+        # Optional: store profile in Firestore
+        if fs:
+            fs.collection("users").document(user.uid).set({
+                "uid": user.uid,
+                "email": user.email,
+                "name": user.display_name,
+            })
+        return jsonify(success=True, uid=user.uid, email=user.email)
     except Exception as e:
-        logger.error(f"Database debug error: {str(e)}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        logger.error(f"Signup error: {e}")
+        return jsonify(success=False, message=str(e)), 400
 
-@app.route('/test', methods=['GET', 'POST'])
-def test():
-    if request.method == 'GET':
-        return jsonify({"message": "GET request works", "timestamp": str(os.times())})
-    elif request.method == 'POST':
-        data = request.get_json() or {}
-        return jsonify({"message": "POST request works", "data": data})
 
-@app.route('/acts', methods=['GET'])
+@app.route("/auth/login", methods=["POST"])
+def login():
+    """
+    Email/password verification MUST be done client-side with Firebase SDK.
+    Our server will instead receive an ID token and exchange it for session info
+    OR create a custom token that the client can use.
+    For a simple backend-only demo, we accept {uid} and return a custom token.
+    """
+    try:
+        uid = request.json.get("uid")  # Provided by your client
+        if not uid:
+            return jsonify(success=False, message="uid required"), 400
+
+        custom_token = auth.create_custom_token(uid).decode("utf-8")
+        return jsonify(success=True, customToken=custom_token)
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        return jsonify(success=False, message=str(e)), 400
+
+
+@app.route("/auth/verify-token", methods=["POST"])
+def verify_token():
+    """Client sends ID token; we verify and return uid & claims."""
+    try:
+        id_token = request.json.get("idToken")
+        decoded = auth.verify_id_token(id_token)
+        return jsonify(success=True, uid=decoded["uid"], claims=decoded)
+    except Exception as e:
+        logger.error(f"Token verify error: {e}")
+        return jsonify(success=False, message="Invalid token"), 401
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+#  DATA ROUTES  (Acts, Articles, Cases, Lawyers)
+# ────────────────────────────────────────────────────────────────────────────────
+@app.route("/acts")
 def get_acts():
     try:
-        logger.info("📚 Fetching acts from database...")
         if db is None:
-            logger.error("Database not connected")
-            return jsonify({"error": "Database not connected"}), 500
-
-        acts_cursor = db.acts.find({}, {'_id': 0})
-        acts = list(acts_cursor)
-        logger.info(f"Found {len(acts)} acts")
-
-        if not acts:
-            logger.warning("No acts found in database")
-            return jsonify([])
-
-        logger.info(f"First act structure: {list(acts[0].keys())}")
+            return jsonify(error="DB not connected"), 500
+        acts = list(db.acts.find({}, {"_id": 0}))
         return jsonify(acts)
-
     except Exception as e:
-        logger.error(f"Error in get_acts: {str(e)}")
-        return jsonify({"error": f"Failed to fetch acts: {str(e)}"}), 500
+        logger.error(e)
+        return jsonify(error=str(e)), 500
 
-@app.route('/acts/<act_id>', methods=['GET'])
+
+@app.route("/acts/<act_id>")
 def get_act_sections(act_id):
     try:
-        logger.info(f"📖 Fetching sections for act ID: {act_id}")
         if db is None:
-            return jsonify({"error": "Database not connected"}), 500
-
-        act = db.acts.find_one({
-            "$or": [
-                {"act_id": act_id},
-                {"act_name": {"$regex": act_id, "$options": "i"}}
-            ]
-        }, {'_id': 0})
-
+            return jsonify(error="DB not connected"), 500
+        act = db.acts.find_one(
+            {"$or": [{"act_id": act_id}, {"act_name": {"$regex": act_id, "$options": "i"}}]},
+            {"_id": 0},
+        )
         if not act:
-            logger.warning(f"Act not found: {act_id}")
-            return jsonify({"error": "Act not found"}), 404
-
+            return jsonify(error="Act not found"), 404
         return jsonify(act)
-
     except Exception as e:
-        logger.error(f"Error in get_act_sections: {str(e)}")
-        return jsonify({"error": f"Failed to fetch act sections: {str(e)}"}), 500
+        logger.error(e)
+        return jsonify(error=str(e)), 500
 
-@app.route('/articles', methods=['GET'])
+
+@app.route("/articles")
 def get_articles():
     try:
-        logger.info("📰 Fetching articles from database...")
         if db is None:
-            logger.error("Database not connected")
-            return jsonify({"error": "Database not connected"}), 500
-
-        articles_cursor = db.articles.find({}, {'_id': 0})
-        articles = list(articles_cursor)
-        logger.info(f"Found {len(articles)} articles")
-
-        if not articles:
-            logger.warning("No articles found in database")
-            return jsonify([])
-
-        logger.info(f"First article structure: {list(articles[0].keys())}")
-        return jsonify(articles)
-
+            return jsonify(error="DB not connected"), 500
+        return jsonify(list(db.articles.find({}, {"_id": 0})))
     except Exception as e:
-        logger.error(f"Error in get_articles: {str(e)}")
-        return jsonify({"error": f"Failed to fetch articles: {str(e)}"}), 500
+        logger.error(e)
+        return jsonify(error=str(e)), 500
 
-@app.route('/cases', methods=['GET'])
+
+@app.route("/cases")
 def get_cases():
     try:
-        logger.info("⚖️ Fetching cases from database...")
         if db is None:
-            return jsonify({"error": "Database not connected"}), 500
-
-        cases_cursor = db.cases.find({}, {'_id': 0})
-        cases = list(cases_cursor)
-        logger.info(f"Found {len(cases)} cases")
-
-        if not cases:
-            logger.warning("No cases found in database")
-            return jsonify([])
-
-        logger.info(f"First case structure: {list(cases[0].keys())}")
-        return jsonify(cases)
-
+            return jsonify(error="DB not connected"), 500
+        return jsonify(list(db.cases.find({}, {"_id": 0})))
     except Exception as e:
-        logger.error(f"Error in get_cases: {str(e)}")
-        return jsonify({"error": f"Failed to fetch cases: {str(e)}"}), 500
+        logger.error(e)
+        return jsonify(error=str(e)), 500
 
-@app.route('/lawyers', methods=['GET'])
+
+@app.route("/lawyers")
 def get_lawyers():
     try:
-        logger.info("👨‍⚖️ Fetching lawyers from database...")
         if db is None:
-            logger.error("Database not connected")
-            return jsonify({"error": "Database not connected"}), 500
+            return jsonify(error="DB not connected"), 500
 
-        # Get query parameters for filtering
-        expertise = request.args.get('expertise')
-        city = request.args.get('city')
-        min_rating = request.args.get('min_rating', type=float)
-        verified = request.args.get('verified', type=bool)
-        lat = request.args.get('lat', type=float)
-        lng = request.args.get('lng', type=float)
-        radius = request.args.get('radius', type=float, default=50)  # km
-        search = request.args.get('search', '').strip()
+        # Filtering params
+        q, city, exp, min_rating = (request.args.get("search", "").strip(),
+                                    request.args.get("city"),
+                                    request.args.get("expertise"),
+                                    request.args.get("min_rating", type=float))
+        lat, lng = request.args.get("lat", type=float), request.args.get("lng", type=float)
+        radius = request.args.get("radius", type=float, default=50)
 
-        # Build query
         query = {}
-        if expertise and expertise != 'All':
-            query['expertise'] = expertise
-        if city and city != 'All':
-            query['city'] = city
+        if exp and exp != "All":
+            query["expertise"] = exp
+        if city and city != "All":
+            query["city"] = city
         if min_rating:
-            query['rating'] = {'$gte': min_rating}
-        if verified:
-            query['verified'] = True
-        if search:
-            query['$or'] = [
-                {'name': {'$regex': search, '$options': 'i'}},
-                {'expertise': {'$regex': search, '$options': 'i'}},
-                {'city': {'$regex': search, '$options': 'i'}},
-                {'description': {'$regex': search, '$options': 'i'}}
+            query["rating"] = {"$gte": min_rating}
+        if q:
+            query["$or"] = [
+                {"name": {"$regex": q, "$options": "i"}},
+                {"expertise": {"$regex": q, "$options": "i"}},
+                {"city": {"$regex": q, "$options": "i"}},
+                {"description": {"$regex": q, "$options": "i"}},
             ]
 
-        lawyers_cursor = db.lawyers.find(query, {'_id': 0})
-        lawyers = list(lawyers_cursor)
-
-        # Filter by location if provided
+        lawyers = list(db.lawyers.find(query, {"_id": 0}))
+        # Filter by distance
         if lat and lng:
-            filtered_lawyers = []
-            for lawyer in lawyers:
-                if 'latitude' in lawyer and 'longitude' in lawyer:
-                    distance = calculate_distance(lat, lng, lawyer['latitude'], lawyer['longitude'])
-                    if distance <= radius:
-                        lawyer['distance'] = distance
-                        filtered_lawyers.append(lawyer)
-            lawyers = sorted(filtered_lawyers, key=lambda x: x.get('distance', float('inf')))
-
-        logger.info(f"Found {len(lawyers)} lawyers")
+            lawyers = [
+                {**lw, "distance": calculate_distance(lat, lng, lw["latitude"], lw["longitude"])}
+                for lw in lawyers
+                if "latitude" in lw and "longitude" in lw
+                and calculate_distance(lat, lng, lw["latitude"], lw["longitude"]) <= radius
+            ]
+            lawyers.sort(key=lambda x: x["distance"])
         return jsonify(lawyers)
-
     except Exception as e:
-        logger.error(f"Error in get_lawyers: {str(e)}")
-        return jsonify({"error": f"Failed to fetch lawyers: {str(e)}"}), 500
+        logger.error(e)
+        return jsonify(error=str(e)), 500
 
-@app.route('/chat', methods=['POST', 'OPTIONS'])
+# ────────────────────────────────────────────────────────────────────────────────
+#  AI CHAT ENDPOINT
+# ────────────────────────────────────────────────────────────────────────────────
+@app.route("/chat", methods=["POST", "OPTIONS"])
 def chat():
-    if request.method == 'OPTIONS':
-        return jsonify({"message": "CORS preflight successful"}), 200
+    if request.method == "OPTIONS":
+        return jsonify(message="CORS preflight OK"), 200
 
     try:
-        logger.info("🤖 Chat endpoint called")
-        data = request.get_json()
+        user_msg = (request.get_json() or {}).get("message", "").strip()
+        if not user_msg:
+            return jsonify(reply="❌ No message provided"), 400
 
-        if not data:
-            return jsonify({"reply": "❌ No JSON data received"}), 400
-
-        user_message = data.get("message", "").strip()
-        logger.info(f"User message received: {user_message[:50]}...")
-
-        if not user_message:
-            return jsonify({"reply": "❌ No message provided"}), 400
-
-        api_key = os.getenv('OPENROUTER_API_KEY')
+        api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
-            logger.error("OPENROUTER_API_KEY not found")
-            return jsonify({"reply": "❌ AI service not configured"}), 500
-
-        logger.info("Making request to OpenRouter...")
+            return jsonify(reply="❌ AI service not configured"), 500
 
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -328,104 +315,70 @@ def chat():
             "HTTP-Referer": os.getenv("SITE_URL", "https://law-and-order-app.onrender.com"),
             "X-Title": os.getenv("SITE_TITLE", "Nyaya Sahayak"),
         }
-
         payload = {
             "model": "deepseek/deepseek-chat",
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are a helpful legal assistant for Indian law. Provide accurate information while noting that you cannot provide legal advice and users should consult qualified lawyers for specific legal matters."
+                    "content": (
+                        "You are a helpful legal assistant for Indian law. "
+                        "Provide accurate information while noting that you cannot provide legal advice "
+                        "and users should consult qualified lawyers for specific matters."
+                    ),
                 },
-                {"role": "user", "content": user_message}
+                {"role": "user", "content": user_msg},
             ],
             "max_tokens": 1000,
-            "temperature": 0.7
+            "temperature": 0.7,
         }
-
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers=headers,
-            data=json.dumps(payload),
-            timeout=30
-        )
-
-        logger.info(f"OpenRouter response status: {response.status_code}")
-
-        if response.status_code == 200:
-            reply_data = response.json()
-            reply = reply_data["choices"][0]["message"]["content"]
-            logger.info(f"Reply generated successfully: {len(reply)} characters")
-            return jsonify({"reply": reply})
-        else:
-            error_msg = f"OpenRouter API Error: {response.status_code}"
-            logger.error(f"{error_msg} - {response.text}")
-            return jsonify({
-                "reply": f"❌ AI service error (Status: {response.status_code})",
-                "detail": response.text[:200]
-            }), 500
-
+        resp = requests.post("https://openrouter.ai/api/v1/chat/completions",
+                             headers=headers, data=json.dumps(payload), timeout=30)
+        if resp.status_code == 200:
+            reply = resp.json()["choices"][0]["message"]["content"]
+            return jsonify(reply=reply)
+        return jsonify(reply="❌ AI error", detail=resp.text[:200]), 500
     except requests.exceptions.Timeout:
-        logger.error("Request timeout to OpenRouter")
-        return jsonify({"reply": "❌ Request timeout. Please try again."}), 500
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Request error: {str(e)}")
-        return jsonify({"reply": "❌ Network error connecting to AI service"}), 500
+        return jsonify(reply="❌ Request timeout"), 500
     except Exception as e:
-        logger.error(f"Chat endpoint error: {str(e)}")
-        return jsonify({"reply": "❌ Server error occurred"}), 500
+        logger.error(e)
+        return jsonify(reply="❌ Server error"), 500
 
-@app.route('/debug/collections', methods=['GET'])
-def debug_collections():
-    try:
-        if db is None:
-            return jsonify({"error": "Database not connected"}), 500
+# ────────────────────────────────────────────────────────────────────────────────
+#  DEBUG ROUTES
+# ────────────────────────────────────────────────────────────────────────────────
+@app.route("/debug/db-status")
+def debug_db_status():
+    ok, msg = validate_db_connection()
+    if not ok:
+        return jsonify(status="error", message=msg), 500
+    collections = db.list_collection_names()
+    return jsonify(status="connected", collections=collections)
 
-        result = {}
-        collections = ['acts', 'articles', 'cases', 'lawyers']
 
-        for collection_name in collections:
-            collection = db[collection_name]
-            count = collection.count_documents({})
-            sample = collection.find_one({}, {'_id': 0})
-
-            field_names = set()
-            for doc in collection.find({}).limit(5):
-                field_names.update(doc.keys())
-            field_names.discard('_id')
-
-            result[collection_name] = {
-                "count": count,
-                "sample_document": sample,
-                "all_fields": list(field_names)
-            }
-
-        return jsonify(result)
-
-    except Exception as e:
-        logger.error(f"Error inspecting collections: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
+# ────────────────────────────────────────────────────────────────────────────────
+#  ERROR HANDLERS
+# ────────────────────────────────────────────────────────────────────────────────
 @app.errorhandler(404)
-def not_found(error):
-    return jsonify({"error": "Endpoint not found"}), 404
+def not_found(e):
+    return jsonify(error="Endpoint not found"), 404
 
-@app.errorhandler(405)
-def method_not_allowed(error):
-    return jsonify({"error": "Method not allowed for this endpoint"}), 405
 
 @app.errorhandler(500)
-def internal_error(error):
-    logger.error(f"Internal server error: {str(error)}")
-    return jsonify({"error": "Internal server error"}), 500
+def server_error(e):
+    logger.error(e)
+    return jsonify(error="Internal server error"), 500
 
+
+# ────────────────────────────────────────────────────────────────────────────────
+#  ENTRY-POINT
+# ────────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    debug_mode = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
-    
-    logger.info(f"🚀 Starting Flask app on port {port}")
-    logger.info(f"Debug mode: {debug_mode}")
-    logger.info(f"Database connected: {db is not None}")
-    
+    port = int(os.getenv("PORT", 5000))
+    debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
+    logger.info(f"🚀 Flask API running on 0.0.0.0:{port}  |  Debug={debug_mode}")
+    logger.info(f"Mongo connected: {db is not None}")
+    logger.info(f"Firebase Admin  : {fs is not None}")
     app.run(host="0.0.0.0", port=port, debug=debug_mode)
+
 
 
