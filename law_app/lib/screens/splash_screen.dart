@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:law_app/screens/main_screen.dart';
+import 'package:law_app/screens/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -24,21 +26,35 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       duration: Duration(milliseconds: 3000),
       vsync: this,
     );
-    _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+
+    _logoScale = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
     );
-    _logoRotation = Tween<double>(begin: 0.0, end: 1.0).animate(
+
+    _logoRotation = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _logoController, curve: Curves.easeInOut),
     );
-    _textFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+
+    _textFade = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _logoController,
         curve: Interval(0.5, 1.0, curve: Curves.easeIn),
       ),
     );
+
     _logoController.forward();
     _particleController.repeat();
+
+    // Check authentication after animation
     Future.delayed(Duration(seconds: 3), () {
+      _checkAuthAndNavigate();
+    });
+  }
+
+  Future<void> _checkAuthAndNavigate() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // User is signed in
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
@@ -49,7 +65,19 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           transitionDuration: Duration(milliseconds: 800),
         ),
       );
-    });
+    } else {
+      // User is NOT signed in
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => LoginScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: Duration(milliseconds: 800),
+        ),
+      );
+    }
   }
 
   @override
@@ -75,10 +103,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         ),
         child: Stack(
           children: [
-            ...List.generate(20, (index) => AnimatedParticle(
-              controller: _particleController,
-              delay: index * 0.05, // Reduced delay to ensure it stays within 0-1 range
-            )),
+            ...List.generate(
+              20,
+              (index) => AnimatedParticle(
+                controller: _particleController,
+                delay: index * 0.05,
+              ),
+            ),
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -154,7 +185,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     height: 40,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00D4FF)),
+                      valueColor: AlwaysStoppedAnimation(Color(0xFF00D4FF)),
                     ),
                   ),
                 ],
@@ -179,16 +210,14 @@ class AnimatedParticle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ensure delay is clamped between 0.0 and 1.0
     final clampedDelay = delay.clamp(0.0, 1.0);
-    
-    final animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+    final animation = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: controller,
         curve: Interval(clampedDelay, 1.0, curve: Curves.easeInOut),
       ),
     );
-    
+
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {

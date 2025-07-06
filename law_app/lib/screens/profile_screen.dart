@@ -1,9 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:law_app/widgets/profile_option.dart';
+import 'package:law_app/screens/login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({Key? key}) : super(key: key);
+
+  Future<void> _logout(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Logout'),
+        content: Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Logout', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldLogout == true) {
+      await FirebaseAuth.instance.signOut();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Optionally, you can fetch the user's name/email from FirebaseAuth here
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Profile'),
@@ -26,7 +61,7 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
         child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 90), // Added bottom padding of 90 to clear navigation bar
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 90),
           child: Column(
             children: [
               SizedBox(height: 20),
@@ -49,7 +84,7 @@ class ProfileScreen extends StatelessWidget {
               ),
               SizedBox(height: 24),
               Text(
-                'Legal Help User',
+                user?.displayName ?? 'Legal Help User',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
@@ -57,7 +92,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               Text(
-                'user@legalhelpindia.com',
+                user?.email ?? 'user@legalhelpindia.com',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.white60,
@@ -99,6 +134,13 @@ class ProfileScreen extends StatelessWidget {
                 title: 'About',
                 subtitle: 'App version and information',
                 onTap: () {},
+              ),
+              // Logout option
+              ProfileOption(
+                icon: Icons.logout,
+                title: 'Logout',
+                subtitle: 'Sign out of your account',
+                onTap: () => _logout(context),
               ),
             ],
           ),
