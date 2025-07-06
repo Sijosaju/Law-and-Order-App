@@ -108,7 +108,7 @@ def send_email_smtp(to_email, subject, html_content):
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(sender_email, sender_password)
-        server.sendmail(sender_email, to_email, message.as_string())
+        server.sendmail(sender_email, to_email, message.as_string().encode('utf-8'))
         server.quit()
         
         logger.info(f"Email sent successfully to {to_email}")
