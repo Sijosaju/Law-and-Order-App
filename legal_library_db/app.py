@@ -108,19 +108,23 @@ def send_email_smtp(to_email, subject, html_content):
             logger.error("SMTP credentials not configured")
             return False
         
+        # Create message with proper encoding
         message = MIMEMultipart("alternative")
         message["Subject"] = subject
         message["From"] = sender_email
         message["To"] = to_email
+        message.set_charset('utf-8')
         
-        # Fix encoding issue - properly encode HTML content
+        # Create HTML part with UTF-8 encoding
         html_part = MIMEText(html_content, "html", "utf-8")
         message.attach(html_part)
         
+        # Send email
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(sender_email, sender_password)
-        server.sendmail(sender_email, to_email, message.as_string())
+        text = message.as_string()
+        server.sendmail(sender_email, to_email, text)
         server.quit()
         
         logger.info(f"Email sent successfully to {to_email}")
@@ -130,84 +134,60 @@ def send_email_smtp(to_email, subject, html_content):
         logger.error(f"SMTP email failed: {e}")
         return False
 
-
-
 def send_verification_email(email, name, verification_link):
-    """Send email verification with clean HTML"""
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }}
-            .container {{ max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; }}
-            .header {{ text-align: center; color: #0A0E27; margin-bottom: 30px; }}
-            .button {{ display: inline-block; background-color: #00D4FF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
-            .footer {{ margin-top: 30px; color: #666; font-size: 14px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>Welcome to LexAid, {name}!</h1>
-            </div>
-            <p>Thank you for creating an account with LexAid - Your Legal Rights, Our Priority.</p>
-            <p>To complete your registration, please verify your email address by clicking the button below:</p>
-            <div style="text-align: center;">
-                <a href="{verification_link}" class="button">Verify Email Address</a>
-            </div>
-            <p>If the button doesn't work, copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #00D4FF;">{verification_link}</p>
-            <div class="footer">
-                <p>If you didn't create this account, please ignore this email.</p>
-                <p>This link will expire in 24 hours for security reasons.</p>
-                <p>Best regards,<br>The LexAid Team</p>
-            </div>
+    """Send clean verification email"""
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Verify Your LexAid Account</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px;">
+        <h1 style="text-align: center; color: #0A0E27;">Welcome to LexAid, {name}!</h1>
+        <p>Thank you for creating an account with LexAid - Your Legal Rights, Our Priority.</p>
+        <p>To complete your registration, please verify your email address by clicking the button below:</p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{verification_link}" style="display: inline-block; background-color: #00D4FF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px;">Verify Email Address</a>
         </div>
-    </body>
-    </html>
-    """
+        <p>If the button doesn't work, copy and paste this link:</p>
+        <p style="word-break: break-all; color: #00D4FF;">{verification_link}</p>
+        <hr style="margin: 30px 0; border: 1px solid #eee;">
+        <p style="color: #666; font-size: 14px;">If you didn't create this account, please ignore this email.</p>
+        <p style="color: #666; font-size: 14px;">This link will expire in 24 hours.</p>
+        <p style="color: #666; font-size: 14px;">Best regards,<br>The LexAid Team</p>
+    </div>
+</body>
+</html>"""
     
     return send_email_smtp(email, "Verify Your LexAid Account", html_content)
 
-
 def send_password_reset_email(email, name, reset_link):
-    """Send password reset email"""
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; }}
-            .container {{ max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px; }}
-            .header {{ text-align: center; color: #0A0E27; margin-bottom: 30px; }}
-            .button {{ display: inline-block; background-color: #f44336; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
-            .footer {{ margin-top: 30px; color: #666; font-size: 14px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>Password Reset Request</h1>
-            </div>
-            <p>Hi {name},</p>
-            <p>We received a request to reset your password for your LexAid account.</p>
-            <p>Click the button below to reset your password:</p>
-            <div style="text-align: center;">
-                <a href="{reset_link}" class="button">Reset Password</a>
-            </div>
-            <p>If the button doesn't work, copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #f44336;">{reset_link}</p>
-            <div class="footer">
-                <p><strong>If you didn't request this password reset, please ignore this email.</strong></p>
-                <p>This link will expire in 1 hour for security reasons.</p>
-                <p>Best regards,<br>The LexAid Team</p>
-            </div>
+    """Send clean password reset email"""
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Reset Your LexAid Password</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px;">
+        <h1 style="text-align: center; color: #0A0E27;">Password Reset Request</h1>
+        <p>Hi {name},</p>
+        <p>We received a request to reset your password for your LexAid account.</p>
+        <p>Click the button below to reset your password:</p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{reset_link}" style="display: inline-block; background-color: #f44336; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px;">Reset Password</a>
         </div>
-    </body>
-    </html>
-    """
+        <p>If the button doesn't work, copy and paste this link:</p>
+        <p style="word-break: break-all; color: #f44336;">{reset_link}</p>
+        <hr style="margin: 30px 0; border: 1px solid #eee;">
+        <p style="color: #666; font-size: 14px;"><strong>If you didn't request this, please ignore this email.</strong></p>
+        <p style="color: #666; font-size: 14px;">This link will expire in 1 hour.</p>
+        <p style="color: #666; font-size: 14px;">Best regards,<br>The LexAid Team</p>
+    </div>
+</body>
+</html>"""
     
     return send_email_smtp(email, "Reset Your LexAid Password", html_content)
 
@@ -315,15 +295,18 @@ def signup():
         except Exception as e:
             logger.error(f"Email verification link generation failed: {e}")
         
-        # Store user data in Firestore
-        if fs:
-            fs.collection("users").document(user.uid).set({
-                "uid": user.uid,
-                "email": user.email,
-                "name": user.display_name,
-                "email_verified": False,
-                "created_at": firestore.SERVER_TIMESTAMP
-            })
+        # Store user data in Firestore (optional - comment out if Firestore not enabled)
+        try:
+            if fs:
+                fs.collection("users").document(user.uid).set({
+                    "uid": user.uid,
+                    "email": user.email,
+                    "name": user.display_name,
+                    "email_verified": False,
+                    "created_at": firestore.SERVER_TIMESTAMP
+                })
+        except Exception as e:
+            logger.warning(f"Firestore write failed: {e}")
         
         return jsonify(
             success=True, 
@@ -475,7 +458,7 @@ def verify_token():
         return jsonify(success=False, message="Invalid token"), 401
 
 # ────────────────────────────────────────────────────────────────────────────────
-#  DATA ROUTES (Your existing routes)
+#  DATA ROUTES
 # ────────────────────────────────────────────────────────────────────────────────
 @app.route("/acts")
 def get_acts():
@@ -643,6 +626,7 @@ if __name__ == "__main__":
     logger.info(f"Firebase Admin: {fs is not None}")
     logger.info(f"Email service: {bool(os.getenv('SMTP_EMAIL'))}")
     app.run(host="0.0.0.0", port=port, debug=debug_mode)
+
 
 
 
