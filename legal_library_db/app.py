@@ -1,12 +1,3 @@
-"""
-Flask-based Legal-Library API
-────────────────────────────
-• MongoDB for data (acts, articles, cases, lawyers)
-• Firebase Admin for authentication (signup, login, token verification)
-• Email validation and password recovery
-• .env for ALL secrets (Mongo URI, Firebase creds, OpenRouter key, etc.)
-"""
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo import MongoClient
@@ -56,7 +47,6 @@ else:
 #  FIREBASE ADMIN INITIALISATION
 # ────────────────────────────────────────────────────────────────────────────────
 def init_firebase_admin():
-    """Initialize Firebase Admin with environment variables"""
     try:
         cred_dict = {
             "type": "service_account",
@@ -82,12 +72,10 @@ fs = init_firebase_admin()
 #  UTILITY HELPERS
 # ────────────────────────────────────────────────────────────────────────────────
 def is_valid_email(email):
-    """Validate email format"""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
 def is_strong_password(password):
-    """Check password strength"""
     if len(password) < 6:
         return False, "Password must be at least 6 characters"
     if not re.search(r'[A-Za-z]', password):
@@ -108,23 +96,19 @@ def send_email_smtp(to_email, subject, html_content):
             logger.error("SMTP credentials not configured")
             return False
         
-        # Create message with proper encoding
         message = MIMEMultipart("alternative")
         message["Subject"] = subject
         message["From"] = sender_email
         message["To"] = to_email
-        message.set_charset('utf-8')
-        
-        # Create HTML part with UTF-8 encoding
+
+        # Use UTF-8 encoding for the HTML content
         html_part = MIMEText(html_content, "html", "utf-8")
         message.attach(html_part)
         
-        # Send email
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(sender_email, sender_password)
-        text = message.as_string()
-        server.sendmail(sender_email, to_email, text)
+        server.sendmail(sender_email, to_email, message.as_string())
         server.quit()
         
         logger.info(f"Email sent successfully to {to_email}")
@@ -135,60 +119,31 @@ def send_email_smtp(to_email, subject, html_content):
         return False
 
 def send_verification_email(email, name, verification_link):
-    """Send clean verification email"""
-    html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Verify Your LexAid Account</title>
-</head>
-<body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px;">
-        <h1 style="text-align: center; color: #0A0E27;">Welcome to LexAid, {name}!</h1>
-        <p>Thank you for creating an account with LexAid - Your Legal Rights, Our Priority.</p>
-        <p>To complete your registration, please verify your email address by clicking the button below:</p>
-        <div style="text-align: center; margin: 30px 0;">
-            <a href="{verification_link}" style="display: inline-block; background-color: #00D4FF; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px;">Verify Email Address</a>
-        </div>
-        <p>If the button doesn't work, copy and paste this link:</p>
-        <p style="word-break: break-all; color: #00D4FF;">{verification_link}</p>
-        <hr style="margin: 30px 0; border: 1px solid #eee;">
-        <p style="color: #666; font-size: 14px;">If you didn't create this account, please ignore this email.</p>
-        <p style="color: #666; font-size: 14px;">This link will expire in 24 hours.</p>
-        <p style="color: #666; font-size: 14px;">Best regards,<br>The LexAid Team</p>
-    </div>
-</body>
-</html>"""
-    
+    html_content = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif;">
+        <h2>Welcome to LexAid, {name}!</h2>
+        <p>Thank you for creating an account with LexAid.</p>
+        <p>Click the link below to verify your email:</p>
+        <a href="{verification_link}">{verification_link}</a>
+        <p>If you did not create this account, you can ignore this email.</p>
+      </body>
+    </html>
+    """
     return send_email_smtp(email, "Verify Your LexAid Account", html_content)
 
 def send_password_reset_email(email, name, reset_link):
-    """Send clean password reset email"""
-    html_content = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Reset Your LexAid Password</title>
-</head>
-<body style="font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 10px;">
-        <h1 style="text-align: center; color: #0A0E27;">Password Reset Request</h1>
+    html_content = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif;">
+        <h2>Password Reset Request</h2>
         <p>Hi {name},</p>
-        <p>We received a request to reset your password for your LexAid account.</p>
-        <p>Click the button below to reset your password:</p>
-        <div style="text-align: center; margin: 30px 0;">
-            <a href="{reset_link}" style="display: inline-block; background-color: #f44336; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px;">Reset Password</a>
-        </div>
-        <p>If the button doesn't work, copy and paste this link:</p>
-        <p style="word-break: break-all; color: #f44336;">{reset_link}</p>
-        <hr style="margin: 30px 0; border: 1px solid #eee;">
-        <p style="color: #666; font-size: 14px;"><strong>If you didn't request this, please ignore this email.</strong></p>
-        <p style="color: #666; font-size: 14px;">This link will expire in 1 hour.</p>
-        <p style="color: #666; font-size: 14px;">Best regards,<br>The LexAid Team</p>
-    </div>
-</body>
-</html>"""
-    
+        <p>Click the link below to reset your password:</p>
+        <a href="{reset_link}">{reset_link}</a>
+        <p>If you did not request this, you can ignore this email.</p>
+      </body>
+    </html>
+    """
     return send_email_smtp(email, "Reset Your LexAid Password", html_content)
 
 def validate_db_connection():
@@ -201,7 +156,6 @@ def validate_db_connection():
         return False, str(e)
 
 def calculate_distance(lat1, lon1, lat2, lon2):
-    """Haversine distance in KM."""
     lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
     dlat, dlon = lat2 - lat1, lon2 - lon1
     a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
@@ -257,45 +211,31 @@ def ping():
 # ────────────────────────────────────────────────────────────────────────────────
 @app.route("/auth/signup", methods=["POST"])
 def signup():
-    """Create user with email/password validation and send verification email"""
     try:
         data = request.get_json(force=True)
         email = data.get("email", "").strip().lower()
         password = data.get("password", "")
         name = data.get("name", "").strip()
-        
-        # Validate inputs
         if not email or not password or not name:
             return jsonify(success=False, message="All fields are required"), 400
-            
-        # Validate email format
         if not is_valid_email(email):
             return jsonify(success=False, message="Invalid email format"), 400
-            
-        # Validate password strength
         is_strong, password_msg = is_strong_password(password)
         if not is_strong:
             return jsonify(success=False, message=password_msg), 400
-            
-        # Create user in Firebase Auth
         user = auth.create_user(
             email=email,
             password=password,
             display_name=name,
             email_verified=False
         )
-        
-        # Generate email verification link
         try:
             verification_link = auth.generate_email_verification_link(email)
             email_sent = send_verification_email(email, name, verification_link)
-            
             if not email_sent:
                 logger.warning(f"Failed to send verification email to {email}")
         except Exception as e:
             logger.error(f"Email verification link generation failed: {e}")
-        
-        # Store user data in Firestore (optional - comment out if Firestore not enabled)
         try:
             if fs:
                 fs.collection("users").document(user.uid).set({
@@ -307,7 +247,6 @@ def signup():
                 })
         except Exception as e:
             logger.warning(f"Firestore write failed: {e}")
-        
         return jsonify(
             success=True, 
             uid=user.uid, 
@@ -315,7 +254,6 @@ def signup():
             name=user.display_name,
             message="Account created successfully! Please check your email for verification link."
         )
-        
     except auth.EmailAlreadyExistsError:
         return jsonify(success=False, message="An account with this email already exists"), 400
     except Exception as e:
@@ -324,35 +262,25 @@ def signup():
 
 @app.route("/auth/login", methods=["POST"])
 def login():
-    """Enhanced login with email verification check"""
     try:
         data = request.get_json(force=True)
         email = data.get("email", "").strip().lower()
         password = data.get("password", "")
-        
         if not email or not password:
             return jsonify(success=False, message="Email and password are required"), 400
-            
         if not is_valid_email(email):
             return jsonify(success=False, message="Invalid email format"), 400
-            
-        # Get user by email
         try:
             user = auth.get_user_by_email(email)
         except auth.UserNotFoundError:
             return jsonify(success=False, message="Invalid email or password"), 401
-            
-        # Check if email is verified
         if not user.email_verified:
             return jsonify(
                 success=False, 
                 message="Please verify your email before logging in. Check your inbox for verification link.",
                 email_not_verified=True
             ), 401
-            
-        # Create custom token
         custom_token = auth.create_custom_token(user.uid).decode("utf-8")
-        
         return jsonify(
             success=True, 
             customToken=custom_token,
@@ -361,25 +289,19 @@ def login():
             name=user.display_name,
             email_verified=user.email_verified
         )
-        
     except Exception as e:
         logger.error(f"Login error: {e}")
         return jsonify(success=False, message="Login failed. Please try again."), 401
 
 @app.route("/auth/forgot-password", methods=["POST"])
 def forgot_password():
-    """Send password reset email"""
     try:
         data = request.get_json(force=True)
         email = data.get("email", "").strip().lower()
-        
         if not email:
             return jsonify(success=False, message="Email is required"), 400
-            
         if not is_valid_email(email):
             return jsonify(success=False, message="Invalid email format"), 400
-            
-        # Check if user exists
         try:
             user = auth.get_user_by_email(email)
         except auth.UserNotFoundError:
@@ -387,72 +309,53 @@ def forgot_password():
                 success=True, 
                 message="If an account with this email exists, a password reset link has been sent."
             ), 200
-            
-        # Generate password reset link
         try:
             reset_link = auth.generate_password_reset_link(email)
             email_sent = send_password_reset_email(email, user.display_name or "User", reset_link)
-            
             if email_sent:
                 return jsonify(success=True, message="Password reset email sent successfully")
             else:
                 return jsonify(success=False, message="Failed to send reset email. Please try again."), 500
-                
         except Exception as e:
             logger.error(f"Password reset link generation failed: {e}")
             return jsonify(success=False, message="Failed to generate reset link"), 500
-        
     except Exception as e:
         logger.error(f"Password reset error: {e}")
         return jsonify(success=False, message="Password reset failed. Please try again."), 500
 
 @app.route("/auth/resend-verification", methods=["POST"])
 def resend_verification():
-    """Resend email verification link"""
     try:
         data = request.get_json(force=True)
         email = data.get("email", "").strip().lower()
-        
         if not email:
             return jsonify(success=False, message="Email is required"), 400
-            
         if not is_valid_email(email):
             return jsonify(success=False, message="Invalid email format"), 400
-            
-        # Check if user exists
         try:
             user = auth.get_user_by_email(email)
         except auth.UserNotFoundError:
             return jsonify(success=False, message="No account found with this email"), 404
-            
-        # Check if already verified
         if user.email_verified:
             return jsonify(success=False, message="Email is already verified"), 400
-            
-        # Generate new verification link
         verification_link = auth.generate_email_verification_link(email)
         email_sent = send_verification_email(email, user.display_name or "User", verification_link)
-        
         if email_sent:
             return jsonify(success=True, message="Verification email sent successfully")
         else:
             return jsonify(success=False, message="Failed to send verification email"), 500
-            
     except Exception as e:
         logger.error(f"Resend verification error: {e}")
         return jsonify(success=False, message="Failed to resend verification email"), 500
 
 @app.route("/auth/verify-token", methods=["POST"])
 def verify_token():
-    """Verify Firebase ID token"""
     try:
         id_token = request.json.get("idToken")
         if not id_token:
             return jsonify(success=False, message="ID token required"), 400
-            
         decoded = auth.verify_id_token(id_token)
         return jsonify(success=True, uid=decoded["uid"], claims=decoded)
-        
     except Exception as e:
         logger.error(f"Token verify error: {e}")
         return jsonify(success=False, message="Invalid token"), 401
@@ -512,7 +415,6 @@ def get_lawyers():
     try:
         if db is None:
             return jsonify(error="DB not connected"), 500
-
         q, city, exp, min_rating = (
             request.args.get("search", "").strip(),
             request.args.get("city"),
@@ -521,7 +423,6 @@ def get_lawyers():
         )
         lat, lng = request.args.get("lat", type=float), request.args.get("lng", type=float)
         radius = request.args.get("radius", type=float, default=50)
-
         query = {}
         if exp and exp != "All":
             query["expertise"] = exp
@@ -536,9 +437,7 @@ def get_lawyers():
                 {"city": {"$regex": q, "$options": "i"}},
                 {"description": {"$regex": q, "$options": "i"}},
             ]
-
         lawyers = list(db.lawyers.find(query, {"_id": 0}))
-        
         if lat and lng:
             lawyers = [
                 {**lw, "distance": calculate_distance(lat, lng, lw["latitude"], lw["longitude"])}
@@ -547,7 +446,6 @@ def get_lawyers():
                 and calculate_distance(lat, lng, lw["latitude"], lw["longitude"]) <= radius
             ]
             lawyers.sort(key=lambda x: x["distance"])
-        
         return jsonify(lawyers)
     except Exception as e:
         logger.error(e)
@@ -557,16 +455,13 @@ def get_lawyers():
 def chat():
     if request.method == "OPTIONS":
         return jsonify(message="CORS preflight OK"), 200
-
     try:
         user_msg = (request.get_json() or {}).get("message", "").strip()
         if not user_msg:
             return jsonify(reply="❌ No message provided"), 400
-
         api_key = os.getenv("OPENROUTER_API_KEY")
         if not api_key:
             return jsonify(reply="❌ AI service not configured"), 500
-
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -626,6 +521,7 @@ if __name__ == "__main__":
     logger.info(f"Firebase Admin: {fs is not None}")
     logger.info(f"Email service: {bool(os.getenv('SMTP_EMAIL'))}")
     app.run(host="0.0.0.0", port=port, debug=debug_mode)
+
 
 
 
