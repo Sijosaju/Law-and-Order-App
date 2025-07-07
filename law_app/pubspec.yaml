@@ -16,6 +16,11 @@ dependencies:
   geolocator: ^10.1.0
   shared_preferences: ^2.2.2
   url_launcher: ^6.2.4 
+  google_sign_in: ^6.2.1  # Changed from 7.1.0 to more stable version
+  firebase_auth: ^4.17.7
+  firebase_core: ^2.31.0
+
+
 
 dev_dependencies:
   flutter_test:
