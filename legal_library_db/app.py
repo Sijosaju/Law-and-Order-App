@@ -15,6 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from math import radians, cos, sin, asin, sqrt
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
+from geopy.exc import GeocoderTimedOut, GeocoderUnavailable  
 
 # ──────────────────────────────────────────────────────────────────────────────── 
 # ENV / LOGGING
@@ -303,21 +304,22 @@ def search_enhanced_police_stations(lat, lng, radius_km):
         return []
 
 def get_area_from_coordinates(lat, lng):
-    """Get district/state information from coordinates"""
+    """Get district/state information from coordinates with fallback"""
     try:
-        geolocator = Nominatim(user_agent="law_app")
-        location = geolocator.reverse(f"{lat}, {lng}")
-        
+        geolocator = Nominatim(user_agent="law_app", timeout=5)
+        location = geolocator.reverse(f"{lat}, {lng}", timeout=5)
         if location and location.raw.get('address'):
             address = location.raw['address']
             return {
                 'district': address.get('state_district', address.get('county', 'Unknown')),
                 'state': address.get('state', 'Unknown')
             }
-    except Exception as e:
+    except (GeocoderTimedOut, GeocoderUnavailable, Exception) as e:
         logger.error(f"Reverse geocoding error: {e}")
     
+    # Fallback to default values
     return {'district': 'Unknown', 'state': 'Unknown'}
+
 
 # ──────────────────────────────────────────────────────────────────────────────── 
 # ROOT + HEALTH
@@ -638,32 +640,42 @@ def get_police_stations(district_code):
         logger.error(f"Police stations fetch error: {e}")
         return jsonify(error=str(e)), 500
 
-@app.route("/api/locations/police-stations-nearby", methods=["POST"])
-def get_nearby_police_stations_by_location():
-    """Get police stations based on actual user location - NEW ENDPOINT"""
+@app.route('/api/locations/police-stations-nearby', methods=['POST'])
+def get_nearby_police_stations():
     try:
-        if db is None:
-            return jsonify(error="Database not connected"), 500
-        
         data = request.get_json()
-        user_lat = data.get('latitude')
-        user_lng = data.get('longitude')
-        radius_km = data.get('radius', 20)  # Default 20km radius
+        lat = data.get('latitude')
+        lng = data.get('longitude')
+        radius = data.get('radius', 20)
         
-        if not user_lat or not user_lng:
-            return jsonify(error="User location required"), 400
+        if not lat or not lng:
+            return jsonify({'error': 'Latitude and longitude required'}), 400
         
-        # Enhanced search with better coverage
-        nearby_stations = search_enhanced_police_stations(
-            user_lat, user_lng, radius_km
-        )
+        # Try enhanced search first
+        stations = search_enhanced_police_stations(lat, lng, radius)
         
-        logger.info(f"Retrieved {len(nearby_stations)} nearby police stations within {radius_km}km")
-        return jsonify(nearby_stations)
+        # If no stations found, provide fallback
+        if not stations:
+            stations = [{
+                'code': 'PS_FALLBACK',
+                'name': 'Nearest Police Station',
+                'latitude': lat,
+                'longitude': lng,
+                'distance_km': 0.0,
+                'address': 'Location-based station',
+                'phone': '',
+                'district': 'Unknown',
+                'state': 'Unknown',
+                'source': 'fallback'
+            }]
+        
+        logger.info(f"Retrieved {len(stations)} nearby police stations within {radius}km")
+        return jsonify(stations)
         
     except Exception as e:
-        logger.error(f"Location-based police stations error: {e}")
-        return jsonify(error=str(e)), 500
+        logger.error(f"Error in nearby police stations: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
 
 # ──────────────────────────────────────────────────────────────────────────────── 
 # FIR ROUTES

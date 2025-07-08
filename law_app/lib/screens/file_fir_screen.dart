@@ -157,88 +157,104 @@ class _FileFirScreenState extends State<FileFirScreen> {
       );
     }
   }
+Future<void> _loadNearbyPoliceStations() async {
+  setState(() {
+    _loadingLocation = true;
+    _loadingStations = true;
+    _policeStations.clear();
+    _selectedPoliceStation = null;
+  });
 
-  Future<void> _loadNearbyPoliceStations() async {
+  try {
+    // Check location permissions
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('Location permission denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception('Location permission permanently denied');
+    }
+
+    // Get current position with timeout
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: Duration(seconds: 15),
+    );
+
+    setState(() => _loadingLocation = false);
+
+    // Call backend API with retry logic
+    int retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        final response = await http.post(
+          Uri.parse('$backendUrl/api/locations/police-stations-nearby'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'latitude': position.latitude,
+            'longitude': position.longitude,
+            'radius': 20
+          }),
+        ).timeout(Duration(seconds: 30));
+
+        if (response.statusCode == 200) {
+          final List data = json.decode(response.body);
+          setState(() {
+            _policeStations = data.cast<Map<String, dynamic>>();
+            _loadingStations = false;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Found ${_policeStations.length} nearby police stations'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          return; // Success, exit retry loop
+        } else {
+          throw Exception('Server error: ${response.statusCode}');
+        }
+      } catch (e) {
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          throw e; // Re-throw after max retries
+        }
+        await Future.delayed(Duration(seconds: 2)); // Wait before retry
+      }
+    }
+
+  } catch (e) {
     setState(() {
-      _loadingLocation = true;
-      _loadingStations = true;
-      _policeStations.clear();
-      _selectedPoliceStation = null;
+      _loadingLocation = false;
+      _loadingStations = false;
+      _useCurrentLocation = false;
     });
 
-    try {
-      // Check location permissions
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw Exception('Location permission denied');
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        throw Exception('Location permission permanently denied');
-      }
-
-      // Get current position
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: Duration(seconds: 10),
-      );
-
-      setState(() {
-        _loadingLocation = false;
-      });
-
-      // Call backend API for nearby stations
-      final response = await http.post(
-        Uri.parse('$backendUrl/api/locations/police-stations-nearby'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'latitude': position.latitude,
-          'longitude': position.longitude,
-          'radius': 20
-        }),
-      ).timeout(Duration(seconds: 30));
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          _policeStations = data.cast<Map<String, dynamic>>();
-          _loadingStations = false;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Found ${_policeStations.length} nearby police stations'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        throw Exception('Failed to load nearby stations: ${response.statusCode}');
-      }
-    } catch (e) {
-      setState(() {
-        _loadingLocation = false;
-        _loadingStations = false;
-        _useCurrentLocation = false;
-      });
-
-      String errorMessage = 'Could not get nearby police stations';
-      if (e.toString().contains('permission')) {
-        errorMessage = 'Location permission is required to find nearby police stations';
-      } else if (e.toString().contains('LocationServiceDisabledException')) {
-        errorMessage = 'Please enable location services and try again';
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
+    String errorMessage = 'Could not get nearby police stations';
+    if (e.toString().contains('permission')) {
+      errorMessage = 'Location permission is required to find nearby police stations';
+    } else if (e.toString().contains('LocationServiceDisabledException')) {
+      errorMessage = 'Please enable location services and try again';
+    } else if (e.toString().contains('TimeoutException')) {
+      errorMessage = 'Request timed out. Please check your internet connection';
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(errorMessage),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 5),
+      ),
+    );
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
