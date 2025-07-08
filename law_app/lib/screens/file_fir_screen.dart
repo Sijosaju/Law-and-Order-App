@@ -4,6 +4,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:geolocator/geolocator.dart';
+
 
 class FileFirScreen extends StatefulWidget {
   @override
@@ -14,7 +16,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
   final _formKey = GlobalKey<FormState>();
   
   // Backend URL - Update with your actual Render deployment URL
-  final String backendUrl = 'https://your-render-app-name.onrender.com';
+  final String backendUrl = 'https://law-and-order-app.onrender.com';
   
   // Personal Details Controllers
   final _nameController = TextEditingController();
@@ -29,6 +31,11 @@ class _FileFirScreenState extends State<FileFirScreen> {
   final _incidentDescriptionController = TextEditingController();
   final _propertyDetailsController = TextEditingController();
   final _accusedDetailsController = TextEditingController();
+  // Add these new variables for location functionality
+   Position? _currentPosition;
+   bool _useCurrentLocation = false;
+   bool _loadingLocation = false;
+
   
   // Dynamic lists for location data
   List<Map<String, dynamic>> _states = [];
@@ -118,6 +125,111 @@ class _FileFirScreenState extends State<FileFirScreen> {
       );
     }
   }
+Future<void> _getCurrentLocationAndLoadStations() async {
+  setState(() {
+    _loadingLocation = true;
+    _policeStations.clear();
+    _selectedPoliceStation = null;
+  });
+
+  try {
+    // Check location permissions
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('Location permission denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception('Location permission permanently denied');
+    }
+
+    // Get current position
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+      timeLimit: Duration(seconds: 10),
+    );
+
+    setState(() {
+      _currentPosition = position;
+      _loadingLocation = false;
+      _loadingStations = true;
+    });
+
+    // Load nearby police stations
+    await _loadNearbyPoliceStations(position);
+
+  } catch (e) {
+    setState(() {
+      _loadingLocation = false;
+      _loadingStations = false;
+      _useCurrentLocation = false;
+    });
+
+    String errorMessage = 'Could not get your location';
+    if (e.toString().contains('permission')) {
+      errorMessage = 'Location permission is required to find nearby police stations';
+    } else if (e.toString().contains('LocationServiceDisabledException')) {
+      errorMessage = 'Please enable location services and try again';
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(errorMessage),
+        backgroundColor: Colors.red,
+        action: SnackBarAction(
+          label: 'Retry',
+          textColor: Colors.white,
+          onPressed: () {
+            setState(() => _useCurrentLocation = true);
+            _getCurrentLocationAndLoadStations();
+          },
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _loadNearbyPoliceStations(Position position) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$backendUrl/api/locations/police-stations-nearby'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'radius': 20
+      }),
+    ).timeout(Duration(seconds: 30));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      setState(() {
+        _policeStations = data.cast<Map<String, dynamic>>();
+        _loadingStations = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Found ${_policeStations.length} nearby police stations'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      throw Exception('Failed to load nearby stations: ${response.statusCode}');
+    }
+  } catch (e) {
+    setState(() => _loadingStations = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Failed to load nearby police stations'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
 
   Future<void> _loadPoliceStations(String districtCode) async {
     setState(() {
@@ -366,198 +478,294 @@ class _FileFirScreenState extends State<FileFirScreen> {
     );
   }
 
-  Widget _buildPoliceStationDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+Widget _buildPoliceStationDropdown() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Current Location Toggle (like in find_lawyer_screen)
+      Container(
+        margin: EdgeInsets.only(bottom: 15),
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: _useCurrentLocation ? Color(0xFF4ECDC4) : Colors.white.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
           children: [
-            Text('Police Station', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-            if (_policeStations.isNotEmpty)
-              Container(
-                margin: EdgeInsets.only(left: 8),
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Color(0xFF4ECDC4),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${_policeStations.length} nearby',
-                  style: TextStyle(color: Colors.white, fontSize: 10),
-                ),
+            Icon(
+              Icons.my_location,
+              color: _useCurrentLocation ? Color(0xFF4ECDC4) : Colors.white60,
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Use Current Location',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    'Find police stations near your location',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
+            ),
+            Switch(
+              value: _useCurrentLocation,
+              onChanged: (value) {
+                setState(() {
+                  _useCurrentLocation = value;
+                  if (value) {
+                    _getCurrentLocationAndLoadStations();
+                  } else {
+                    _policeStations.clear();
+                    _selectedPoliceStation = null;
+                    _currentPosition = null;
+                  }
+                });
+              },
+              activeColor: Color(0xFF4ECDC4),
+            ),
           ],
         ),
-        SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: _loadingStations
-              ? Container(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00D4FF)),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Text('Finding nearby police stations...', style: TextStyle(color: Colors.white60)),
-                    ],
-                  ),
-                )
-              : DropdownButtonFormField<String>(
-                  value: _selectedPoliceStation,
-                  dropdownColor: Color(0xFF1A1D3A),
-                  style: TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    prefixIcon: Icon(Icons.local_police, color: Color(0xFF00D4FF)),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  hint: Text('Select Police Station', style: TextStyle(color: Colors.white60)),
-                  items: _policeStations.map((station) {
-                    return DropdownMenuItem<String>(
-                      value: station['code'],
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            station['name'],
-                            style: TextStyle(fontSize: 14),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (station['distance_km'] != null)
-                            Text(
-                              '${station['distance_km']} km away',
-                              style: TextStyle(fontSize: 12, color: Colors.white60),
-                            ),
-                          if (station['address'] != null && station['address'].toString().isNotEmpty)
-                            Text(
-                              station['address'].toString(),
-                              style: TextStyle(fontSize: 11, color: Colors.white60),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: _selectedDistrict == null ? null : (value) {
-                    setState(() => _selectedPoliceStation = value);
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a police station';
-                    }
-                    return null;
-                  },
-                ),
-        ),
-        
-        // Add map view button if stations are loaded
-        if (_policeStations.isNotEmpty)
-          Container(
-            margin: EdgeInsets.only(top: 12),
-            width: double.infinity,
-            child: ElevatedButton.icon(
+      ),
+
+      // Police Station Selection
+      Row(
+        children: [
+          Text('Police Station', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+          if (_policeStations.isNotEmpty)
+            Container(
+              margin: EdgeInsets.only(left: 8),
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Color(0xFF4ECDC4),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${_policeStations.length} ${_useCurrentLocation ? "nearby" : "in district"}',
+                style: TextStyle(color: Colors.white, fontSize: 10),
+              ),
+            ),
+          Spacer(),
+          if (_policeStations.isNotEmpty)
+            ElevatedButton.icon(
               onPressed: () => _showPoliceStationMap(),
               icon: Icon(Icons.map, size: 16),
-              label: Text('View on Map'),
+              label: Text('View Map'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xFF4ECDC4),
                 foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               ),
             ),
-          ),
-      ],
-    );
-  }
-
-  void _showPoliceStationMap() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Color(0xFF1A1D3A),
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ],
       ),
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        padding: EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Text(
-              'Nearby Police Stations',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 16),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _policeStations.length,
-                itemBuilder: (context, index) {
-                  final station = _policeStations[index];
-                  return Card(
-                    color: Colors.white.withOpacity(0.1),
-                    margin: EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Icon(Icons.local_police, color: Color(0xFF4ECDC4)),
-                      title: Text(
-                        station['name'],
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (station['distance_km'] != null)
-                            Text(
-                              '${station['distance_km']} km away',
-                              style: TextStyle(color: Color(0xFF00D4FF)),
-                            ),
-                          if (station['address'] != null && station['address'].toString().isNotEmpty)
-                            Text(
-                              station['address'].toString(),
-                              style: TextStyle(color: Colors.white60),
-                            ),
-                        ],
-                      ),
-                      trailing: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          setState(() {
-                            _selectedPoliceStation = station['code'];
-                          });
-                        },
-                        child: Text('Select'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF4ECDC4),
-                          foregroundColor: Colors.white,
-                        ),
+      SizedBox(height: 8),
+
+      // Loading or Dropdown
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: (_loadingStations || _loadingLocation)
+            ? Container(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00D4FF)),
                       ),
                     ),
+                    SizedBox(width: 12),
+                    Text(
+                      _loadingLocation 
+                        ? 'Getting your location...' 
+                        : 'Finding nearby police stations...',
+                      style: TextStyle(color: Colors.white60),
+                    ),
+                  ],
+                ),
+              )
+            : DropdownButtonFormField<String>(
+                value: _selectedPoliceStation,
+                dropdownColor: Color(0xFF1A1D3A),
+                style: TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.local_police, color: Color(0xFF00D4FF)),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                hint: Text(
+                  _useCurrentLocation 
+                    ? 'Select nearby police station' 
+                    : 'Select Police Station',
+                  style: TextStyle(color: Colors.white60),
+                ),
+                items: _policeStations.map((station) {
+                  return DropdownMenuItem<String>(
+                    value: station['code'],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          station['name'],
+                          style: TextStyle(fontSize: 14),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (station['distance_km'] != null)
+                          Text(
+                            '${station['distance_km']} km away',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF4ECDC4)),
+                          ),
+                        if (station['address'] != null && station['address'].toString().isNotEmpty)
+                          Text(
+                            station['address'].toString(),
+                            style: TextStyle(fontSize: 11, color: Colors.white60),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
                   );
+                }).toList(),
+                onChanged: (!_useCurrentLocation && _selectedDistrict == null) ? null : (value) {
+                  setState(() => _selectedPoliceStation = value);
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please select a police station';
+                  }
+                  return null;
                 },
               ),
-            ),
-          ],
-        ),
       ),
-    );
-  }
+    ],
+  );
+}
+
+
+void _showPoliceStationMap() {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Color(0xFF1A1D3A),
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      padding: EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Text(
+                'Police Stations',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Spacer(),
+              if (_useCurrentLocation && _currentPosition != null)
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Color(0xFF4ECDC4).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.my_location, size: 14, color: Color(0xFF4ECDC4)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Near You',
+                        style: TextStyle(color: Color(0xFF4ECDC4), fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: 16),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _policeStations.length,
+              itemBuilder: (context, index) {
+                final station = _policeStations[index];
+                return Card(
+                  color: Colors.white.withOpacity(0.1),
+                  margin: EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: Icon(Icons.local_police, color: Color(0xFF4ECDC4)),
+                    title: Text(
+                      station['name'],
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (station['distance_km'] != null)
+                          Text(
+                            '${station['distance_km']} km away',
+                            style: TextStyle(color: Color(0xFF00D4FF), fontWeight: FontWeight.w500),
+                          ),
+                        if (station['address'] != null && station['address'].toString().isNotEmpty)
+                          Text(
+                            station['address'].toString(),
+                            style: TextStyle(color: Colors.white60),
+                          ),
+                        if (station['district'] != null)
+                          Text(
+                            'District: ${station['district']}',
+                            style: TextStyle(color: Colors.white60, fontSize: 12),
+                          ),
+                      ],
+                    ),
+                    trailing: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          _selectedPoliceStation = station['code'];
+                        });
+                      },
+                      child: Text('Select'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF4ECDC4),
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 
   Widget _buildInputField(String label, TextEditingController controller, IconData icon, {int maxLines = 1}) {
     return Column(
@@ -731,83 +939,96 @@ class _FileFirScreenState extends State<FileFirScreen> {
     );
   }
 
-  void _generateOfficialFIR() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        // Add null checks
-        if (_selectedState == null || _selectedDistrict == null || _selectedPoliceStation == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please select all location fields')),
-          );
-          return;
-        }
+void _generateOfficialFIR() async {
+  if (_formKey.currentState!.validate()) {
+    try {
+      // Validation for location selection
+      if (_useCurrentLocation && _selectedPoliceStation == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please select a nearby police station')),
+        );
+        return;
+      }
 
-        // Find selected names with null safety
-        String stateName = _states.firstWhere(
+      if (!_useCurrentLocation && (_selectedState == null || _selectedDistrict == null || _selectedPoliceStation == null)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please select all location fields')),
+        );
+        return;
+      }
+
+      // Find selected names with null safety
+      String stateName, districtName, stationName;
+      
+      if (_useCurrentLocation) {
+        // For location-based selection
+        final selectedStation = _policeStations.firstWhere(
+          (p) => p['code'] == _selectedPoliceStation,
+          orElse: () => {'name': 'Unknown Police Station', 'district': 'Unknown', 'state': 'Unknown'}
+        );
+        stateName = selectedStation['state'] ?? 'Unknown State';
+        districtName = selectedStation['district'] ?? 'Unknown District';
+        stationName = selectedStation['name'];
+      } else {
+        // For district-based selection
+        stateName = _states.firstWhere(
           (s) => s['code'] == _selectedState,
           orElse: () => {'name': 'Unknown State'}
         )['name'];
         
-        String districtName = _districts.firstWhere(
+        districtName = _districts.firstWhere(
           (d) => d['code'] == _selectedDistrict,
           orElse: () => {'name': 'Unknown District'}
         )['name'];
         
-        String stationName = _policeStations.firstWhere(
+        stationName = _policeStations.firstWhere(
           (p) => p['code'] == _selectedPoliceStation,
           orElse: () => {'name': 'Unknown Police Station'}
         )['name'];
-        
-        // Generate unique FIR ID
-        String firId = 'FIR${DateTime.now().millisecondsSinceEpoch}';
-        
-        print('Generated FIR ID: $firId'); // Debug log
-        
-        // Create FIR data
-        Map<String, dynamic> firData = {
-          'fir_id': firId,
-          'state_code': _selectedState,
-          'state_name': stateName,
-          'district_code': _selectedDistrict,
-          'district_name': districtName,
-          'police_station_code': _selectedPoliceStation,
-          'police_station_name': stationName,
-          'complainant_name': _nameController.text,
-          'father_name': _fatherNameController.text,
-          'age': _ageController.text,
-          'occupation': _occupationController.text,
-          'address': _addressController.text,
-          'phone': _phoneController.text,
-          'category': _selectedCategory,
-          'incident_date': _incidentDate.toIso8601String(),
-          'incident_time': _incidentTime.format(context),
-          'incident_location': _incidentLocationController.text,
-          'description': _incidentDescriptionController.text,
-          'property_details': _propertyDetailsController.text,
-          'accused_details': _accusedDetailsController.text,
-          'created_at': DateTime.now().toIso8601String(),
-          'status': 'PDF Generated',
-        };
-        
-        print('FIR Data: ${json.encode(firData)}'); // Debug log
-        
-        // Save to backend FIRST
-        await _saveFIRToBackend(firData);
-        
-        // Generate PDF
-        await _generatePDF(firData);
-        
-        // Show success dialog
-        _showSuccessDialog(firId);
-        
-      } catch (e) {
-        print('Error in FIR generation: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating FIR: $e')),
-        );
       }
+
+      // Rest of your existing FIR generation code...
+      String firId = 'FIR${DateTime.now().millisecondsSinceEpoch}';
+      
+      Map<String, dynamic> firData = {
+        'fir_id': firId,
+        'state_code': _selectedState ?? 'LOCATION_BASED',
+        'state_name': stateName,
+        'district_code': _selectedDistrict ?? 'LOCATION_BASED',
+        'district_name': districtName,
+        'police_station_code': _selectedPoliceStation,
+        'police_station_name': stationName,
+        'location_based': _useCurrentLocation,
+        'complainant_name': _nameController.text,
+        'father_name': _fatherNameController.text,
+        'age': _ageController.text,
+        'occupation': _occupationController.text,
+        'address': _addressController.text,
+        'phone': _phoneController.text,
+        'category': _selectedCategory,
+        'incident_date': _incidentDate.toIso8601String(),
+        'incident_time': _incidentTime.format(context),
+        'incident_location': _incidentLocationController.text,
+        'description': _incidentDescriptionController.text,
+        'property_details': _propertyDetailsController.text,
+        'accused_details': _accusedDetailsController.text,
+        'created_at': DateTime.now().toIso8601String(),
+        'status': 'PDF Generated',
+      };
+
+      await _saveFIRToBackend(firData);
+      await _generatePDF(firData);
+      _showSuccessDialog(firId);
+      
+    } catch (e) {
+      print('Error in FIR generation: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generating FIR: $e')),
+      );
     }
   }
+}
+
 
   Future<void> _saveFIRToBackend(Map<String, dynamic> firData) async {
     try {
