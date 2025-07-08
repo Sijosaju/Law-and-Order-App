@@ -581,118 +581,63 @@ def get_police_stations(district_code):
         logger.error(f"Police stations fetch error: {e}")
         return jsonify(error=str(e)), 500
 
-@app.route('/api/locations/police-stations-nearby', methods=['POST'])
+
+# ────────────────────────────────────────────────────────────────────────────────
+# POLICE STATION LOCATOR API - THE MISSING ENDPOINT
+# ────────────────────────────────────────────────────────────────────────────────
+@app.route("/api/locations/police-stations-nearby", methods=["POST"])
 def get_nearby_police_stations():
-    """Get 25 police stations near user's current location"""
+    """Get nearby police stations based on user's current location"""
     try:
+        # Validate request data
         data = request.get_json()
-        latitude = data.get('latitude')
-        longitude = data.get('longitude')
+        if not data or 'latitude' not in data or 'longitude' not in data:
+            return jsonify({"error": "Latitude and longitude are required"}), 400
         
-        if not latitude or not longitude:
-            return jsonify({'error': 'Latitude and longitude required'}), 400
+        # Extract coordinates
+        try:
+            lat = float(data['latitude'])
+            lng = float(data['longitude'])
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid latitude or longitude format"}), 400
         
-        # Always search for nearby police stations using current location
-        stations = search_nearby_police_stations_25(latitude, longitude)
+        # Validate coordinate ranges
+        if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+            return jsonify({"error": "Invalid coordinate values"}), 400
         
-        return jsonify(stations)
+        logger.info(f"Searching for police stations near: {lat}, {lng}")
         
-    except Exception as e:
-        logger.error(f"Error in nearby police stations: {e}")
-        return jsonify({'error': 'Failed to fetch nearby police stations'}), 500
-
-def search_nearby_police_stations_25(lat, lng):
-    """Search for 25 police stations using OpenStreetMap Overpass API"""
-    try:
-        overpass_url = "http://overpass-api.de/api/interpreter"
-        overpass_query = f"""
-        [out:json][timeout:30];
-        (
-            node["amenity"="police"](around:25000,{lat},{lng});
-            way["amenity"="police"](around:25000,{lat},{lng});
-            relation["amenity"="police"](around:25000,{lat},{lng});
-        );
-        out center meta;
-        """
+        # Get area information from coordinates
+        area_info = get_area_from_coordinates(lat, lng)
+        district_name = area_info.get('district', 'Unknown')
+        state_name = area_info.get('state', 'Unknown')
         
-        response = requests.post(overpass_url, data=overpass_query, timeout=30)
-        data = response.json()
+        logger.info(f"Location identified as: {district_name}, {state_name}")
         
-        stations = []
-        for element in data.get('elements', []):
-            # Get coordinates
-            if 'lat' in element and 'lon' in element:
-                station_lat, station_lon = element['lat'], element['lon']
-            elif 'center' in element:
-                station_lat, station_lon = element['center']['lat'], element['center']['lon']
-            else:
-                continue
-            
-            # Calculate distance
-            distance = geodesic((lat, lng), (station_lat, station_lon)).kilometers
-            
-            # Get station details
-            tags = element.get('tags', {})
-            station_name = tags.get('name', 'Police Station')
-            
-            # Get area information
-            area_info = get_area_from_coordinates(station_lat, station_lon)
-            
-            stations.append({
-                'code': f"PS_{element.get('id', len(stations))}",
-                'name': station_name,
-                'latitude': station_lat,
-                'longitude': station_lon,
-                'distance_km': round(distance, 2),
-                'address': f"{tags.get('addr:street', '')} {tags.get('addr:city', '')}".strip(),
-                'phone': tags.get('phone', ''),
-                'district': area_info.get('district', 'Unknown'),
-                'state': area_info.get('state', 'Unknown'),
-                'source': 'openstreetmap'
-            })
+        # Search for nearby police stations
+        stations = search_nearby_police_stations(lat, lng, district_name)
         
-        # Sort by distance and return top 25
-        stations.sort(key=lambda x: x['distance_km'])
-        return stations[:25]
+        # Add additional metadata
+        for station in stations:
+            station['state'] = state_name
+            station['district'] = district_name
+            station['search_location'] = {
+                'latitude': lat,
+                'longitude': lng,
+                'district': district_name,
+                'state': state_name
+            }
+        
+        logger.info(f"Found {len(stations)} police stations")
+        
+        return jsonify(stations), 200
         
     except Exception as e:
-        logger.error(f"Police station search error: {e}")
-        # Fallback: generate 25 dummy stations if API fails
-        return generate_fallback_stations(lat, lng)
-
-def generate_fallback_stations(lat, lng):
-    """Generate 25 fallback police stations around the location"""
-    stations = []
-    station_types = ['Main', 'Central', 'Traffic', 'Women', 'Cyber Crime', 'Economic Offences', 
-                    'Special Branch', 'Crime Branch', 'Local', 'Outpost', 'Chowki', 'Thana',
-                    'City', 'Rural', 'Highway', 'Border', 'Railway', 'Airport', 'Industrial', 
-                    'Commercial', 'Residential', 'Tourist', 'Market', 'University', 'Hospital']
-    
-    for i in range(25):
-        station_type = station_types[i % len(station_types)]
-        # Create stations in a circle around the location
-        lat_offset = (i * 0.01) * (1 if i % 2 == 0 else -1)
-        lng_offset = (i * 0.01) * (1 if i % 3 == 0 else -1)
-        
-        station_lat = lat + lat_offset
-        station_lng = lng + lng_offset
-        distance = geodesic((lat, lng), (station_lat, station_lng)).kilometers
-        
-        stations.append({
-            'code': f'PS_FALLBACK_{i+1:03d}',
-            'name': f'{station_type} Police Station',
-            'latitude': station_lat,
-            'longitude': station_lng,
-            'distance_km': round(distance, 2),
-            'address': f'Near current location',
-            'phone': f'+91-{1000000000 + i}',
-            'district': 'Current Area',
-            'state': 'Current State',
-            'source': 'fallback'
-        })
-    
-    return sorted(stations, key=lambda x: x['distance_km'])
-
+        logger.error(f"Error in police station endpoint: {e}")
+        return jsonify({
+            "error": "Failed to fetch nearby police stations",
+            "message": str(e)
+        }), 500
 
 
 # ──────────────────────────────────────────────────────────────────────────────── 
