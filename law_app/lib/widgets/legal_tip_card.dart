@@ -6,11 +6,11 @@ class LegalTipCard extends StatelessWidget {
   final IconData icon;
 
   const LegalTipCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.description,
     required this.icon,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,34 +29,34 @@ class LegalTipCard extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: Colors.white, size: 24),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               title,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Expanded(
               child: Text(
                 description,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white60,
                   fontSize: 14,
                   height: 1.4,

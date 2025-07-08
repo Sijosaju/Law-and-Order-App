@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:law_app/services/auth_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
+  const ForgotPasswordScreen({super.key});
+
   @override
   _ForgotPasswordScreenState createState() => _ForgotPasswordScreenState();
 }
@@ -37,14 +39,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.check_circle, color: Colors.green),
             SizedBox(width: 8),
             Text('Email Sent!'),
           ],
         ),
-        content: Text(
+        content: const Text(
           'If an account with this email exists, a password reset link has been sent. Please check your inbox.'
         ),
         actions: [
@@ -53,7 +55,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               Navigator.pop(context);
               Navigator.pop(context);
             },
-            child: Text('Back to Login'),
+            child: const Text('Back to Login'),
           ),
         ],
       ),
@@ -64,12 +66,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Reset Password'),
+        title: const Text('Reset Password'),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: RadialGradient(
             center: Alignment.topCenter,
             radius: 1.5,
@@ -80,14 +82,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
         ),
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 40),
-                Text(
+                const SizedBox(height: 40),
+                const Text(
                   'Forgot Password?',
                   style: TextStyle(
                     fontSize: 28,
@@ -95,34 +97,34 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     color: Colors.white,
                   ),
                 ),
-                SizedBox(height: 16),
-                Text(
+                const SizedBox(height: 16),
+                const Text(
                   'Enter your email address and we\'ll send you a link to reset your password.',
                   style: TextStyle(
                     color: Colors.white60,
                     fontSize: 16,
                   ),
                 ),
-                SizedBox(height: 40),
+                const SizedBox(height: 40),
                 
                 TextFormField(
                   controller: _emailController,
-                  style: TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Email',
-                    labelStyle: TextStyle(color: Colors.white60),
-                    prefixIcon: Icon(Icons.email_outlined, color: Colors.white60),
+                    labelStyle: const TextStyle(color: Colors.white60),
+                    prefixIcon: const Icon(Icons.email_outlined, color: Colors.white60),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.white30),
+                      borderSide: const BorderSide(color: Colors.white30),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.white30),
+                      borderSide: const BorderSide(color: Colors.white30),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Color(0xFF00D4FF)),
+                      borderSide: const BorderSide(color: Color(0xFF00D4FF)),
                     ),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.1),
@@ -133,20 +135,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     return null;
                   },
                 ),
-                SizedBox(height: 32),
+                const SizedBox(height: 32),
                 
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _resetPassword,
                     style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      backgroundColor: Color(0xFF00D4FF),
+                      backgroundColor: const Color(0xFF00D4FF),
                       elevation: 0,
                     ),
                     child: _isLoading
-                        ? SizedBox(
+                        ? const SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
@@ -154,7 +156,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : Text(
+                        : const Text(
                             'Send Reset Link',
                             style: TextStyle(
                               fontSize: 16,

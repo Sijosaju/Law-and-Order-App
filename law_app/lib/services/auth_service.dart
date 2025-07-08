@@ -44,7 +44,7 @@ class AuthService {
           'email': email,
           'password': password,
         }),
-      ).timeout(Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 30));
 
       final data = json.decode(response.body);
       
@@ -83,7 +83,7 @@ class AuthService {
           'email': email,
           'password': password,
         }),
-      ).timeout(Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 30));
 
       final data = json.decode(response.body);
       
@@ -112,7 +112,7 @@ class AuthService {
         Uri.parse('$baseUrl/auth/forgot-password'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'email': email}),
-      ).timeout(Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 30));
 
       final data = json.decode(response.body);
       return data;
@@ -131,7 +131,7 @@ class AuthService {
         Uri.parse('$baseUrl/auth/resend-verification'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'email': email}),
-      ).timeout(Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 30));
 
       final data = json.decode(response.body);
       return data;

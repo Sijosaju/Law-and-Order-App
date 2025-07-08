@@ -9,6 +9,8 @@ import 'find_lawyer_screen.dart';
 import '/widgets/modern_sos_button.dart';
 
 class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
   @override
   _MainScreenState createState() => _MainScreenState();
 }
@@ -30,7 +32,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _fabController = AnimationController(
-      duration: Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 200),
       vsync: this,
     );
   }
@@ -64,7 +66,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       case 0: // Home Tab
         switch (routeSettings.name) {
           case '/find-lawyer':
-            return FindLawyerScreen();
+            return const FindLawyerScreen();
           case '/':
           default:
             return HomeScreen();
@@ -72,11 +74,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       case 1: // Chat Tab
         return ChatScreen();
       case 2: // Library Tab
-        return LibraryScreen();
+        return const LibraryScreen();
       case 3: // Emergency Tab
         return EmergencyScreen();
       case 4: // Profile Tab
-        return ProfileScreen();
+        return const ProfileScreen();
       default:
         return HomeScreen();
     }
@@ -109,7 +111,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             splashColor: Colors.transparent,
             highlightColor: Colors.transparent,
             // Customize the bottom navigation bar theme
-            bottomNavigationBarTheme: BottomNavigationBarThemeData(
+            bottomNavigationBarTheme: const BottomNavigationBarThemeData(
               backgroundColor: Color(0xFF1A1D3A),
               selectedItemColor: Color(0xFF00D4FF),
               unselectedItemColor: Colors.white38,
@@ -122,8 +124,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
             type: BottomNavigationBarType.fixed,
-            backgroundColor: Color(0xFF1A1D3A),
-            selectedItemColor: Color(0xFF00D4FF),
+            backgroundColor: const Color(0xFF1A1D3A),
+            selectedItemColor: const Color(0xFF00D4FF),
             unselectedItemColor: Colors.white38,
             elevation: 0,
             showSelectedLabels: false,
@@ -168,19 +170,19 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget _buildNavIcon(IconData icon, int index) {
     bool isSelected = _currentIndex == index;
     return AnimatedContainer(
-      duration: Duration(milliseconds: 200),
-      padding: EdgeInsets.all(12),
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isSelected ? Color(0xFF00D4FF).withOpacity(0.15) : Colors.transparent,
+        color: isSelected ? const Color(0xFF00D4FF).withOpacity(0.15) : Colors.transparent,
         borderRadius: BorderRadius.circular(25),
         border: isSelected
-            ? Border.all(color: Color(0xFF00D4FF).withOpacity(0.3), width: 1)
+            ? Border.all(color: const Color(0xFF00D4FF).withOpacity(0.3), width: 1)
             : null,
       ),
       child: Icon(
         icon,
         size: 28,
-        color: isSelected ? Color(0xFF00D4FF) : Colors.white38,
+        color: isSelected ? const Color(0xFF00D4FF) : Colors.white38,
       ),
     );
   }

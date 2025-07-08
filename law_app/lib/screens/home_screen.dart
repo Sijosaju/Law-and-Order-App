@@ -5,9 +5,14 @@ import 'package:law_app/widgets/legal_tip_card.dart';
 import 'package:law_app/screens/library_screen.dart';
 import 'package:law_app/screens/find_lawyer_screen.dart';
 import 'package:law_app/screens/emergency_screen.dart';
+import 'package:law_app/screens/file_fir_screen.dart';
+import 'package:law_app/screens/track_case_screen.dart';
+
 
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -19,7 +24,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   bool _isMenuOpen = false;
   bool _isSearchOpen = false;
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
 
   // --- DATA FOR SEARCH ---
   final List<Map<String, dynamic>> _quickActions = [
@@ -27,28 +32,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       'icon': Icons.chat_bubble,
       'title': 'AI Legal Chat',
       'subtitle': 'Get instant answers',
-      'gradient': [Color(0xFF00D4FF), Color(0xFF5B73FF)],
+      'gradient': [const Color(0xFF00D4FF), const Color(0xFF5B73FF)],
       'onTap': () {},
     },
     {
       'icon': Icons.description,
       'title': 'File FIR',
       'subtitle': 'File complaint online',
-      'gradient': [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+      'gradient': [const Color(0xFFFF6B6B), const Color(0xFFFF8E53)],
       'onTap': () {},
     },
     {
       'icon': Icons.person_search,
       'title': 'Find Lawyer',
       'subtitle': 'Connect with experts',
-      'gradient': [Color(0xFF4ECDC4), Color(0xFF44A08D)],
+      'gradient': [const Color(0xFF4ECDC4), const Color(0xFF44A08D)],
       'onTap': () {},
     },
     {
       'icon': Icons.track_changes,
       'title': 'Track Case',
       'subtitle': 'Check case status',
-      'gradient': [Color(0xFF667eea), Color(0xFF764ba2)],
+      'gradient': [const Color(0xFF667eea), const Color(0xFF764ba2)],
       'onTap': () {},
     },
   ];
@@ -79,14 +84,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
     _fadeAnimation = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
     _slideAnimation = Tween(
-      begin: Offset(0, 0.3),
+      begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _animationController,
@@ -148,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildSideMenu() {
     return AnimatedPositioned(
-      duration: Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 300),
       left: _isMenuOpen ? 0 : -280,
       top: 0,
       bottom: 0,
@@ -156,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         width: 280,
         decoration: BoxDecoration(
           color: const Color(0xFF1A1D3A),
-          borderRadius: BorderRadius.only(
+          borderRadius: const BorderRadius.only(
             topRight: Radius.circular(24),
             bottomRight: Radius.circular(24),
           ),
@@ -164,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             BoxShadow(
               color: Colors.black.withOpacity(0.4),
               blurRadius: 15,
-              offset: Offset(4, 0),
+              offset: const Offset(4, 0),
             ),
           ],
         ),
@@ -174,8 +179,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               // Menu Header
               Container(
-                padding: EdgeInsets.all(20),
-                decoration: BoxDecoration(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                     begin: Alignment.topLeft,
@@ -185,21 +190,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: Row(
                   children: [
                     Container(
-                      padding: EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
+                        gradient: const LinearGradient(
                           colors: [Color(0xFF1A1D3A), Color(0xFF0A0E27)],
                         ),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.home,
                         color: Colors.white,
                         size: 24,
                       ),
                     ),
-                    SizedBox(width: 12),
-                    Text(
+                    const SizedBox(width: 12),
+                    const Text(
                       'LexAid',
                       style: TextStyle(
                         color: Colors.white,
@@ -213,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // Menu Items
               Expanded(
                 child: ListView(
-                  padding: EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   children: [
                     _buildMenuItem(Icons.dashboard, 'Dashboard', 0, true, () {
                       _toggleMenu(); // already on dashboard
@@ -259,22 +264,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildMenuItem(IconData icon, String title, int index, bool isSelected, VoidCallback onTap) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
-        color: isSelected ? Color(0xFF00D4FF).withOpacity(0.1) : Colors.transparent,
+        color: isSelected ? const Color(0xFF00D4FF).withOpacity(0.1) : Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        border: isSelected ? Border.all(color: Color(0xFF00D4FF).withOpacity(0.5), width: 1) : null,
+        border: isSelected ? Border.all(color: const Color(0xFF00D4FF).withOpacity(0.5), width: 1) : null,
       ),
       child: ListTile(
         leading: Icon(
           icon,
-          color: isSelected ? Color(0xFF00D4FF) : Colors.white70,
+          color: isSelected ? const Color(0xFF00D4FF) : Colors.white70,
           size: 22,
         ),
         title: Text(
           title,
           style: TextStyle(
-            color: isSelected ? Color(0xFF00D4FF) : Colors.white70,
+            color: isSelected ? const Color(0xFF00D4FF) : Colors.white70,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             fontSize: 16,
           ),
@@ -291,7 +296,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         children: [
           // Main Content
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: RadialGradient(
                 center: Alignment.topRight,
                 radius: 1.2,
@@ -315,28 +320,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
                         Row(
                           children: [
                             // Menu Toggle Button
                             GestureDetector(
                               onTap: _toggleMenu,
                               child: Container(
-                                padding: EdgeInsets.all(8),
+                                padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Color(0xFFE53E3E),
+                                  color: const Color(0xFFE53E3E),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: Icon(
+                                child: const Icon(
                                   Icons.dashboard,
                                   color: Colors.white,
                                   size: 20,
                                 ),
                               ),
                             ),
-                            SizedBox(width: 16),
+                            const SizedBox(width: 16),
                             // Dashboard Title
-                            Expanded(
+                            const Expanded(
                               child: Text(
                                 'Dashboard',
                                 style: TextStyle(
@@ -350,13 +355,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             GestureDetector(
                               onTap: _toggleSearch,
                               child: Container(
-                                padding: EdgeInsets.all(12),
+                                padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Color(0xFFE53E3E),
+                                  color: const Color(0xFFE53E3E),
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Color(0xFFE53E3E).withOpacity(0.3),
+                                      color: const Color(0xFFE53E3E).withOpacity(0.3),
                                       blurRadius: 15,
                                     ),
                                   ],
@@ -370,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ],
                         ),
-                        SizedBox(height: 32),
+                        const SizedBox(height: 32),
                         // Welcome Section
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       fontSize: 28,
                                       fontWeight: FontWeight.w700,
                                       foreground: Paint()
-                                        ..shader = LinearGradient(
+                                        ..shader = const LinearGradient(
                                           colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                                         ).createShader(Rect.fromLTWH(0.0, 0.0, 200.0, 70.0)),
                                     ),
@@ -395,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       fontSize: 28,
                                       fontWeight: FontWeight.w700,
                                       foreground: Paint()
-                                        ..shader = LinearGradient(
+                                        ..shader = const LinearGradient(
                                           colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                                         ).createShader(Rect.fromLTWH(0.0, 0.0, 200.0, 70.0)),
                                     ),
@@ -403,8 +408,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 ],
                               ),
                             ),
-                            SizedBox(height: 8),
-                            Text(
+                            const SizedBox(height: 8),
+                            const Text(
                               'Your AI-powered legal assistant for navigating Indian law.',
                               style: TextStyle(
                                 fontSize: 14,
@@ -414,10 +419,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ],
                         ),
-                        SizedBox(height: 32),
+                        const SizedBox(height: 32),
                         // Search Bar Section (Animated)
                         AnimatedContainer(
-                          duration: Duration(milliseconds: 300),
+                          duration: const Duration(milliseconds: 300),
                           height: _isSearchOpen ? 60 : 0,
                           child: _isSearchOpen
                               ? Container(
@@ -437,8 +442,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   child: TextField(
                                     controller: _searchController,
                                     autofocus: true,
-                                    style: TextStyle(color: Colors.white),
-                                    decoration: InputDecoration(
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: const InputDecoration(
                                       hintText: 'Search legal help...',
                                       hintStyle: TextStyle(color: Colors.white60),
                                       border: InputBorder.none,
@@ -453,11 +458,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     ),
                                   ),
                                 )
-                              : SizedBox.shrink(),
+                              : const SizedBox.shrink(),
                         ),
-                        if (_isSearchOpen) SizedBox(height: 20),
+                        if (_isSearchOpen) const SizedBox(height: 20),
                         // Quick Actions Section
-                        Text(
+                        const Text(
                           'Quick Actions',
                           style: TextStyle(
                             fontSize: 22,
@@ -465,11 +470,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             color: Colors.white,
                           ),
                         ),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
                         SizedBox(
                           height: 360,
                           child: _filteredQuickActions.isEmpty
-                              ? Center(
+                              ? const Center(
                                   child: Text(
                                     'No actions found.',
                                     style: TextStyle(color: Colors.white54),
@@ -480,31 +485,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   crossAxisSpacing: 16,
                                   mainAxisSpacing: 16,
                                   childAspectRatio: 1.1,
-                                  physics: NeverScrollableScrollPhysics(),
+                                  physics: const NeverScrollableScrollPhysics(),
                                   children: _filteredQuickActions.map((action) {
-  VoidCallback? actionTap;
+VoidCallback? actionTap;
+if (action['title'] == 'Find Lawyer') {
+  actionTap = () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const FindLawyerScreen()),
+    );
+  };
+} else if (action['title'] == 'AI Legal Chat') {
+  actionTap = () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ChatScreen()),
+    );
+  };
+} else if (action['title'] == 'File FIR') {
+  actionTap = () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => FileFirScreen()),
+    );
+  };
+} else if (action['title'] == 'Track Case') {
+  actionTap = () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => TrackCaseScreen()),
+    );
+  };
+} else {
+  actionTap = () {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${action['title']} coming soon')),
+    );
+  };
+}
 
-  if (action['title'] == 'Find Lawyer') {
-    actionTap = () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const FindLawyerScreen()),
-      );
-    };
-  } else if (action['title'] == 'AI Legal Chat') {
-    actionTap = () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => ChatScreen()),
-      );
-    };
-  } else {
-    actionTap = () {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${action['title']} coming soon')),
-      );
-    };
-  }
 
   return ModernActionCard(
     icon: action['icon'],
@@ -517,12 +536,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
                                 ),
                         ),
-                        SizedBox(height: 40),
+                        const SizedBox(height: 40),
                         // Legal Insights Section
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
+                            const Text(
                               'Legal Insights',
                               style: TextStyle(
                                 fontSize: 22,
@@ -532,7 +551,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                             TextButton(
                               onPressed: () {},
-                              child: Text(
+                              child: const Text(
                                 'View All',
                                 style: TextStyle(
                                   color: Color(0xFF00D4FF),
@@ -542,11 +561,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                           ],
                         ),
-                        SizedBox(height: 16),
-                        Container(
+                        const SizedBox(height: 16),
+                        SizedBox(
                           height: 200,
                           child: _filteredLegalInsights.isEmpty
-                              ? Center(
+                              ? const Center(
                                   child: Text(
                                     'No insights found.',
                                     style: TextStyle(color: Colors.white54),
@@ -559,7 +578,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     final tip = _filteredLegalInsights[index];
                                     return Container(
                                       width: 280,
-                                      margin: EdgeInsets.only(right: 16),
+                                      margin: const EdgeInsets.only(right: 16),
                                       child: LegalTipCard(
                                         title: tip['title'],
                                         description: tip['description'],
@@ -569,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   },
                                 ),
                         ),
-                        SizedBox(height: 100),
+                        const SizedBox(height: 100),
                       ],
                     ),
                   ),

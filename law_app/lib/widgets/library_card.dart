@@ -6,16 +6,16 @@ class LibraryCard extends StatelessWidget {
   final IconData icon;
 
   const LibraryCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.description,
     required this.icon,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -27,11 +27,11 @@ class LibraryCard extends StatelessWidget {
         border: Border.all(color: Colors.white.withOpacity(0.1)),
       ),
       child: ListTile(
-        contentPadding: EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.all(16),
         leading: Container(
-          padding: EdgeInsets.all(12),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
             ),
             borderRadius: BorderRadius.circular(12),
@@ -40,7 +40,7 @@ class LibraryCard extends StatelessWidget {
         ),
         title: Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w600,
             fontSize: 16,
@@ -48,12 +48,12 @@ class LibraryCard extends StatelessWidget {
         ),
         subtitle: Text(
           description,
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white60,
             fontSize: 14,
           ),
         ),
-        trailing: Icon(
+        trailing: const Icon(
           Icons.arrow_forward_ios,
           color: Colors.white38,
           size: 16,

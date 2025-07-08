@@ -4,12 +4,12 @@ import 'package:law_app/models/chat_message.dart'; // Updated import
 class ChatBubble extends StatelessWidget {
   final ChatMessage message;
 
-  const ChatBubble({Key? key, required this.message}) : super(key: key);
+  const ChatBubble({super.key, required this.message});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 4),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
@@ -17,22 +17,22 @@ class ChatBubble extends StatelessWidget {
             Container(
               width: 32,
               height: 32,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                 ),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.smart_toy, color: Colors.white, size: 16),
+              child: const Icon(Icons.smart_toy, color: Colors.white, size: 16),
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
           ],
           Flexible(
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 gradient: message.isUser
-                    ? LinearGradient(
+                    ? const LinearGradient(
                         colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                       )
                     : LinearGradient(
@@ -48,7 +48,7 @@ class ChatBubble extends StatelessWidget {
               ),
               child: Text(
                 message.text,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 15,
                   height: 1.4,
@@ -57,17 +57,17 @@ class ChatBubble extends StatelessWidget {
             ),
           ),
           if (message.isUser) ...[
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Container(
               width: 32,
               height: 32,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [Color(0xFF667eea), Color(0xFF764ba2)],
                 ),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.person, color: Colors.white, size: 16),
+              child: const Icon(Icons.person, color: Colors.white, size: 16),
             ),
           ],
         ],

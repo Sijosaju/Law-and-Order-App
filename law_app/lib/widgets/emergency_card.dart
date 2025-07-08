@@ -9,18 +9,18 @@ class EmergencyCard extends StatelessWidget {
   final VoidCallback? onCall;
 
   const EmergencyCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.number,
     required this.icon,
     required this.color,
     this.onCall,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [color.withOpacity(0.8), color.withOpacity(0.6)],
@@ -32,16 +32,16 @@ class EmergencyCard extends StatelessWidget {
           BoxShadow(
             color: color.withOpacity(0.3),
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         child: Row(
           children: [
             Container(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(16),
@@ -52,20 +52,20 @@ class EmergencyCard extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
-            SizedBox(width: 20),
+            const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     number,
                     style: TextStyle(
@@ -84,15 +84,15 @@ class EmergencyCard extends StatelessWidget {
                   onCall!();
                 }
               },
-              icon: Icon(Icons.phone, size: 20),
-              label: Text('Call'),
+              icon: const Icon(Icons.phone, size: 20),
+              label: const Text('Call'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: color,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ],

@@ -17,6 +17,8 @@ void main() async {
 
 
 class LegalHelpApp extends StatelessWidget {
+  const LegalHelpApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -24,16 +26,16 @@ class LegalHelpApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        primaryColor: Color(0xFF0A0E27),
-        scaffoldBackgroundColor: Color(0xFF0A0E27),
+        primaryColor: const Color(0xFF0A0E27),
+        scaffoldBackgroundColor: const Color(0xFF0A0E27),
         fontFamily: 'SF Pro Display',
-        appBarTheme: AppBarTheme(
+        appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
           elevation: 0,
           systemOverlayStyle: SystemUiOverlayStyle.light,
         ),
-        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Color(0xFF1A1D3A),
           selectedItemColor: Color(0xFF00D4FF),
           unselectedItemColor: Colors.white38,

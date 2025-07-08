@@ -4,6 +4,8 @@ import 'package:law_app/screens/login_screen.dart';
 import 'package:law_app/services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
   @override
   _SplashScreenState createState() => _SplashScreenState();
 }
@@ -19,11 +21,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   void initState() {
     super.initState();
     _logoController = AnimationController(
-      duration: Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
     _particleController = AnimationController(
-      duration: Duration(milliseconds: 3000),
+      duration: const Duration(milliseconds: 3000),
       vsync: this,
     );
 
@@ -38,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _textFade = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _logoController,
-        curve: Interval(0.5, 1.0, curve: Curves.easeIn),
+        curve: const Interval(0.5, 1.0, curve: Curves.easeIn),
       ),
     );
 
@@ -46,7 +48,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _particleController.repeat();
 
     // Check authentication after animation
-    Future.delayed(Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 3), () {
       _checkAuthAndNavigate();
     });
   }
@@ -62,7 +64,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
-          transitionDuration: Duration(milliseconds: 800),
+          transitionDuration: const Duration(milliseconds: 800),
         ),
       );
     } else {
@@ -73,7 +75,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
-          transitionDuration: Duration(milliseconds: 800),
+          transitionDuration: const Duration(milliseconds: 800),
         ),
       );
     }
@@ -90,7 +92,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: RadialGradient(
             center: Alignment.center,
             radius: 1.0,
@@ -124,7 +126,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             width: 120,
                             height: 120,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
+                              gradient: const LinearGradient(
                                 colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
@@ -132,13 +134,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               borderRadius: BorderRadius.circular(30),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Color(0xFF00D4FF).withOpacity(0.3),
+                                  color: const Color(0xFF00D4FF).withOpacity(0.3),
                                   blurRadius: 30,
                                   spreadRadius: 5,
                                 ),
                               ],
                             ),
-                            child: Icon(
+                            child: const Icon(
                               Icons.balance,
                               size: 60,
                               color: Colors.white,
@@ -148,16 +150,16 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       );
                     },
                   ),
-                  SizedBox(height: 32),
+                  const SizedBox(height: 32),
                   FadeTransition(
                     opacity: _textFade,
                     child: Column(
                       children: [
                         ShaderMask(
-                          shaderCallback: (bounds) => LinearGradient(
+                          shaderCallback: (bounds) => const LinearGradient(
                             colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                           ).createShader(bounds),
-                          child: Text(
+                          child: const Text(
                             'LexAid',
                             style: TextStyle(
                               fontSize: 32,
@@ -166,8 +168,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             ),
                           ),
                         ),
-                        SizedBox(height: 12),
-                        Text(
+                        const SizedBox(height: 12),
+                        const Text(
                           'Your Legal Rights, Our Priority',
                           style: TextStyle(
                             fontSize: 16,
@@ -178,11 +180,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       ],
                     ),
                   ),
-                  SizedBox(height: 60),
-                  Container(
+                  const SizedBox(height: 60),
+                  SizedBox(
                     width: 40,
                     height: 40,
-                    child: CircularProgressIndicator(
+                    child: const CircularProgressIndicator(
                       strokeWidth: 3,
                       valueColor: AlwaysStoppedAnimation(Color(0xFF00D4FF)),
                     ),
@@ -202,10 +204,10 @@ class AnimatedParticle extends StatelessWidget {
   final double delay;
 
   const AnimatedParticle({
-    Key? key,
+    super.key,
     required this.controller,
     required this.delay,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -229,11 +231,11 @@ class AnimatedParticle extends StatelessWidget {
               width: 4,
               height: 4,
               decoration: BoxDecoration(
-                color: Color(0xFF00D4FF),
+                color: const Color(0xFF00D4FF),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0xFF00D4FF).withOpacity(0.5),
+                    color: const Color(0xFF00D4FF).withOpacity(0.5),
                     blurRadius: 10,
                   ),
                 ],

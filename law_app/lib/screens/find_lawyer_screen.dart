@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 
 class FindLawyerScreen extends StatefulWidget {
-  const FindLawyerScreen({Key? key}) : super(key: key);
+  const FindLawyerScreen({super.key});
 
   @override
   _FindLawyerScreenState createState() => _FindLawyerScreenState();
@@ -19,7 +19,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
   bool _showMap = false;
   String _selectedExpertise = 'All';
@@ -86,14 +86,14 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
     _slideAnimation = Tween<Offset>(
-      begin: Offset(0, 0.3),
+      begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _animationController,
@@ -171,7 +171,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
         await launchUrl(launchUri);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Could not launch phone app'),
             backgroundColor: Colors.red,
           ),
@@ -225,7 +225,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
       } else {
         print('❌ Failed to load lawyers: ${response.statusCode}');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Failed to load lawyers. Please try again.'),
             backgroundColor: Colors.red,
           ),
@@ -234,7 +234,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
     } catch (e) {
       print('❌ Error loading lawyers: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Network error. Please check your connection.'),
           backgroundColor: Colors.red,
         ),
@@ -278,11 +278,11 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
   }
 
   Widget _buildFilterChips() {
-    return Container(
+    return SizedBox(
       height: 50,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
           _buildFilterChip('Expertise', _selectedExpertise, _expertiseAreas, (value) {
             setState(() {
@@ -290,16 +290,16 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
             });
             _applyFilters();
           }),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           _buildFilterChip('City', _selectedCity, _cities, (value) {
             setState(() {
               _selectedCity = value;
             });
             _applyFilters();
           }),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           _buildRatingFilter(),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           _buildVerifiedFilter(),
         ],
       ),
@@ -311,8 +311,8 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
       onTap: () {
         showModalBottomSheet(
           context: context,
-          backgroundColor: Color(0xFF1A1D3A),
-          shape: RoundedRectangleBorder(
+          backgroundColor: const Color(0xFF1A1D3A),
+          shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           isScrollControlled: true,
@@ -320,20 +320,20 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.7,
             ),
-            padding: EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Select $label',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 Expanded(
                   child: ListView.builder(
                     shrinkWrap: true,
@@ -343,7 +343,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                       return ListTile(
                         title: Text(
                           option,
-                          style: TextStyle(color: Colors.white),
+                          style: const TextStyle(color: Colors.white),
                         ),
                         leading: Radio<String>(
                           value: option,
@@ -352,7 +352,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                             onSelected(value!);
                             Navigator.pop(context);
                           },
-                          activeColor: Color(0xFF00D4FF),
+                          activeColor: const Color(0xFF00D4FF),
                         ),
                       );
                     },
@@ -364,23 +364,23 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
         );
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF00D4FF).withOpacity(0.2), Color(0xFF5B73FF).withOpacity(0.2)],
+            colors: [const Color(0xFF00D4FF).withOpacity(0.2), const Color(0xFF5B73FF).withOpacity(0.2)],
           ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Color(0xFF00D4FF).withOpacity(0.3)),
+          border: Border.all(color: const Color(0xFF00D4FF).withOpacity(0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '$label: $selected',
-              style: TextStyle(color: Colors.white, fontSize: 12),
+              style: const TextStyle(color: Colors.white, fontSize: 12),
             ),
-            SizedBox(width: 4),
-            Icon(Icons.arrow_drop_down, color: Colors.white, size: 16),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_drop_down, color: Colors.white, size: 16),
           ],
         ),
       ),
@@ -393,8 +393,8 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            backgroundColor: Color(0xFF1A1D3A),
-            title: Text('Minimum Rating', style: TextStyle(color: Colors.white)),
+            backgroundColor: const Color(0xFF1A1D3A),
+            title: const Text('Minimum Rating', style: TextStyle(color: Colors.white)),
             content: StatefulBuilder(
               builder: (context, setDialogState) => Column(
                 mainAxisSize: MainAxisSize.min,
@@ -404,7 +404,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                     min: 0.0,
                     max: 5.0,
                     divisions: 10,
-                    activeColor: Color(0xFF00D4FF),
+                    activeColor: const Color(0xFF00D4FF),
                     onChanged: (value) {
                       setDialogState(() {
                         _minRating = value;
@@ -413,7 +413,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                   ),
                   Text(
                     '${_minRating.toStringAsFixed(1)} stars and above',
-                    style: TextStyle(color: Colors.white),
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ],
               ),
@@ -424,29 +424,29 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                   Navigator.pop(context);
                   _applyFilters();
                 },
-                child: Text('Apply', style: TextStyle(color: Color(0xFF00D4FF))),
+                child: const Text('Apply', style: TextStyle(color: Color(0xFF00D4FF))),
               ),
             ],
           ),
         );
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF00D4FF).withOpacity(0.2), Color(0xFF5B73FF).withOpacity(0.2)],
+            colors: [const Color(0xFF00D4FF).withOpacity(0.2), const Color(0xFF5B73FF).withOpacity(0.2)],
           ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Color(0xFF00D4FF).withOpacity(0.3)),
+          border: Border.all(color: const Color(0xFF00D4FF).withOpacity(0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.star, color: Colors.amber, size: 16),
-            SizedBox(width: 4),
+            const Icon(Icons.star, color: Colors.amber, size: 16),
+            const SizedBox(width: 4),
             Text(
               '${_minRating.toStringAsFixed(1)}+',
-              style: TextStyle(color: Colors.white, fontSize: 12),
+              style: const TextStyle(color: Colors.white, fontSize: 12),
             ),
           ],
         ),
@@ -463,29 +463,29 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
         _applyFilters();
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: _verifiedOnly 
-              ? [Color(0xFF4ECDC4), Color(0xFF44A08D)]
-              : [Color(0xFF00D4FF).withOpacity(0.2), Color(0xFF5B73FF).withOpacity(0.2)],
+              ? [const Color(0xFF4ECDC4), const Color(0xFF44A08D)]
+              : [const Color(0xFF00D4FF).withOpacity(0.2), const Color(0xFF5B73FF).withOpacity(0.2)],
           ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Color(0xFF00D4FF).withOpacity(0.3)),
+          border: Border.all(color: const Color(0xFF00D4FF).withOpacity(0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.verified,
-              color: _verifiedOnly ? Colors.white : Color(0xFF00D4FF),
+              color: _verifiedOnly ? Colors.white : const Color(0xFF00D4FF),
               size: 16,
             ),
-            SizedBox(width: 4),
+            const SizedBox(width: 4),
             Text(
               'Verified',
               style: TextStyle(
-                color: _verifiedOnly ? Colors.white : Color(0xFF00D4FF),
+                color: _verifiedOnly ? Colors.white : const Color(0xFF00D4FF),
                 fontSize: 12,
               ),
             ),
@@ -501,9 +501,9 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
     String address = _extractAddress(fullNameText);
     
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [Color(0xFF4ECDC4), Color(0xFF44A08D)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -513,12 +513,12 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
           BoxShadow(
             color: Colors.black.withOpacity(0.15),
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -537,12 +537,12 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         color: Colors.white.withOpacity(0.2),
-                        child: Icon(Icons.person, color: Colors.white, size: 30),
+                        child: const Icon(Icons.person, color: Colors.white, size: 30),
                       ),
                     ),
                   ),
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,7 +552,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                           Expanded(
                             child: Text(
                               cleanName,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -563,12 +563,12 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                           ),
                           if (lawyer['verified'] == true)
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Colors.blue,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Row(
+                              child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(Icons.verified, color: Colors.white, size: 12),
@@ -586,13 +586,13 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                             ),
                           if (lawyer['senior_advocate'] == true)
                             Container(
-                              margin: EdgeInsets.only(left: 8),
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Colors.orange,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(
+                              child: const Text(
                                 'Senior',
                                 style: TextStyle(
                                   color: Colors.white,
@@ -603,7 +603,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                             ),
                         ],
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         lawyer['expertise'] ?? 'General Practice',
                         style: TextStyle(
@@ -612,7 +612,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         '${lawyer['experience'] ?? 0} years experience',
                         style: TextStyle(
@@ -625,7 +625,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
               lawyer['description'] ?? 'Experienced legal practitioner',
               style: TextStyle(
@@ -635,11 +635,11 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Icon(Icons.location_on, color: Colors.white.withOpacity(0.7), size: 16),
-                SizedBox(width: 4),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     lawyer['city'] ?? 'Unknown',
@@ -651,9 +651,9 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                SizedBox(width: 16),
-                Icon(Icons.star, color: Colors.amber, size: 16),
-                SizedBox(width: 4),
+                const SizedBox(width: 16),
+                const Icon(Icons.star, color: Colors.amber, size: 16),
+                const SizedBox(width: 4),
                 Text(
                   '${lawyer['rating'] ?? 0.0} (${lawyer['reviews'] ?? 0} reviews)',
                   style: TextStyle(
@@ -661,10 +661,10 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                     fontSize: 12,
                   ),
                 ),
-                Spacer(),
+                const Spacer(),
                 Text(
                   lawyer['fee'] ?? '₹1000/hr',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -672,7 +672,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -685,28 +685,28 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
-                      foregroundColor: Color(0xFF44A08D),
+                      foregroundColor: const Color(0xFF44A08D),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text('View Profile'),
+                    child: const Text('View Profile'),
                   ),
                 ),
-                SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
                       _bookConsultation(lawyer);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF00D4FF),
+                      backgroundColor: const Color(0xFF00D4FF),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text('Book Now'),
+                    child: const Text('Book Now'),
                   ),
                 ),
               ],
@@ -723,8 +723,8 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
     
     showModalBottomSheet(
       context: context,
-      backgroundColor: Color(0xFF1A1D3A),
-      shape: RoundedRectangleBorder(
+      backgroundColor: const Color(0xFF1A1D3A),
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       isScrollControlled: true,
@@ -733,7 +733,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
         maxChildSize: 0.9,
         minChildSize: 0.5,
         builder: (context, scrollController) => Container(
-          padding: EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
           child: SingleChildScrollView(
             controller: scrollController,
             child: Column(
@@ -749,7 +749,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                     ),
                   ),
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
                 
                 // Profile header
                 Row(
@@ -759,7 +759,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                       height: 80,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Color(0xFF00D4FF), width: 3),
+                        border: Border.all(color: const Color(0xFF00D4FF), width: 3),
                       ),
                       child: ClipOval(
                         child: Image.network(
@@ -767,12 +767,12 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) => Container(
                             color: Colors.white.withOpacity(0.2),
-                            child: Icon(Icons.person, color: Colors.white, size: 40),
+                            child: const Icon(Icons.person, color: Colors.white, size: 40),
                           ),
                         ),
                       ),
                     ),
-                    SizedBox(width: 16),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -782,7 +782,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                               Expanded(
                                 child: Text(
                                   cleanName,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -791,12 +791,12 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                               ),
                               if (lawyer['verified'] == true)
                                 Container(
-                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: Colors.blue,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: Row(
+                                  child: const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(Icons.verified, color: Colors.white, size: 14),
@@ -816,13 +816,13 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                           ),
                           if (lawyer['senior_advocate'] == true)
                             Container(
-                              margin: EdgeInsets.only(top: 4),
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              margin: const EdgeInsets.only(top: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Colors.orange,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(
+                              child: const Text(
                                 'Senior Advocate',
                                 style: TextStyle(
                                   color: Colors.white,
@@ -831,23 +831,23 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                                 ),
                               ),
                             ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
                             lawyer['expertise'] ?? 'General Practice',
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Color(0xFF00D4FF),
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Row(
                             children: [
-                              Icon(Icons.star, color: Colors.amber, size: 18),
-                              SizedBox(width: 4),
+                              const Icon(Icons.star, color: Colors.amber, size: 18),
+                              const SizedBox(width: 4),
                               Text(
                                 '${lawyer['rating'] ?? 0.0} (${lawyer['reviews'] ?? 0} reviews)',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 14,
                                 ),
@@ -859,22 +859,22 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                     ),
                   ],
                 ),
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
                 
                 // Profile sections
                 _buildProfileSection('About', lawyer['description'] ?? 'Experienced legal practitioner'),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 _buildProfileSection('Experience', '${lawyer['experience'] ?? 0} years of legal practice'),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 _buildProfileSection('Court', lawyer['court'] ?? 'Supreme Court of India'),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 _buildProfileSection('Address', address),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 _buildProfileSection('Enrollment Number', lawyer['enrollment_number'] ?? 'Not available'),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 if (lawyer['registration_date'] != null)
                   _buildProfileSection('Registration Date', lawyer['registration_date']),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 _buildProfileSection('Consultation Fee', lawyer['fee'] ?? '₹1000/hr'),
                 
                 // Specializations
@@ -882,8 +882,8 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(height: 16),
-                      Text(
+                      const SizedBox(height: 16),
+                      const Text(
                         'Specializations',
                         style: TextStyle(
                           color: Colors.white,
@@ -891,21 +891,21 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: (lawyer['specializations'] as List).map((spec) => 
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Color(0xFF00D4FF).withOpacity(0.2),
+                              color: const Color(0xFF00D4FF).withOpacity(0.2),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Color(0xFF00D4FF).withOpacity(0.3)),
+                              border: Border.all(color: const Color(0xFF00D4FF).withOpacity(0.3)),
                             ),
                             child: Text(
                               spec.toString(),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Color(0xFF00D4FF),
                                 fontSize: 12,
                               ),
@@ -916,7 +916,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                     ],
                   ),
                 
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
                 
                 // Action buttons
                 Row(
@@ -929,38 +929,38 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                             _makePhoneCall(phoneNumber);
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
+                              const SnackBar(
                                 content: Text('Phone number not available'),
                                 backgroundColor: Colors.orange,
                               ),
                             );
                           }
                         },
-                        icon: Icon(Icons.phone),
-                        label: Text('Call'),
+                        icon: const Icon(Icons.phone),
+                        label: const Text('Call'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF4ECDC4),
+                          backgroundColor: const Color(0xFF4ECDC4),
                           foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
                       ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
                           Navigator.pop(context);
                           _bookConsultation(lawyer);
                         },
-                        icon: Icon(Icons.calendar_today),
-                        label: Text('Book'),
+                        icon: const Icon(Icons.calendar_today),
+                        label: const Text('Book'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF00D4FF),
+                          backgroundColor: const Color(0xFF00D4FF),
                           foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -983,16 +983,16 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
       children: [
         Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           content,
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.white70,
             fontSize: 14,
             height: 1.4,
@@ -1006,7 +1006,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Booking consultation with ${_extractLawyerName(lawyer['name'] ?? '')}...'),
-        backgroundColor: Color(0xFF4ECDC4),
+        backgroundColor: const Color(0xFF4ECDC4),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -1014,7 +1014,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
 
   Widget _buildMapView() {
     if (_currentPosition == null) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1046,7 +1046,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
               point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
               width: 30,
               height: 30,
-              child: Icon(
+              child: const Icon(
                 Icons.my_location,
                 color: Colors.blue,
                 size: 30,
@@ -1066,28 +1066,28 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                   showDialog(
                     context: context,
                     builder: (context) => AlertDialog(
-                      backgroundColor: Color(0xFF1A1D3A),
-                      title: Text(cleanName, style: TextStyle(color: Colors.white)),
+                      backgroundColor: const Color(0xFF1A1D3A),
+                      title: Text(cleanName, style: const TextStyle(color: Colors.white)),
                       content: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(lawyer['expertise'] ?? 'General Practice', style: TextStyle(color: Colors.white70)),
-                          SizedBox(height: 8),
+                          Text(lawyer['expertise'] ?? 'General Practice', style: const TextStyle(color: Colors.white70)),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
-                              Icon(Icons.star, color: Colors.amber, size: 16),
-                              Text(' ${lawyer['rating'] ?? 0.0}', style: TextStyle(color: Colors.white70)),
+                              const Icon(Icons.star, color: Colors.amber, size: 16),
+                              Text(' ${lawyer['rating'] ?? 0.0}', style: const TextStyle(color: Colors.white70)),
                             ],
                           ),
-                          SizedBox(height: 8),
-                          Text(lawyer['fee'] ?? '₹1000/hr', style: TextStyle(color: Color(0xFF00D4FF))),
+                          const SizedBox(height: 8),
+                          Text(lawyer['fee'] ?? '₹1000/hr', style: const TextStyle(color: Color(0xFF00D4FF))),
                         ],
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: Text('Close', style: TextStyle(color: Color(0xFF00D4FF))),
+                          child: const Text('Close', style: TextStyle(color: Color(0xFF00D4FF))),
                         ),
                         TextButton(
                           onPressed: () {
@@ -1097,34 +1097,34 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                             lawyerWithCleanData['address'] = _extractAddress(lawyer['name'] ?? '');
                             _showLawyerProfile(lawyerWithCleanData);
                           },
-                          child: Text('View Profile', style: TextStyle(color: Color(0xFF4ECDC4))),
+                          child: const Text('View Profile', style: TextStyle(color: Color(0xFF4ECDC4))),
                         ),
                       ],
                     ),
                   );
                 },
                 child: Container(
-                  padding: EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Color(0xFF4ECDC4),
+                    color: const Color(0xFF4ECDC4),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.3),
                         blurRadius: 6,
-                        offset: Offset(0, 2),
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.person,
                     color: Colors.white,
                     size: 20,
                   ),
                 ),
               ),
-            )).toList(),
+            )),
           ],
         ),
       ],
@@ -1134,15 +1134,15 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF1A1D3A),
+      backgroundColor: const Color(0xFF1A1D3A),
       appBar: AppBar(
-        backgroundColor: Color(0xFF1A1D3A),
+        backgroundColor: const Color(0xFF1A1D3A),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: const Text(
           'Find Lawyer',
           style: TextStyle(
             color: Colors.white,
@@ -1164,10 +1164,10 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
           ),
           if (_currentPosition != null)
             IconButton(
-              icon: Icon(Icons.my_location, color: Color(0xFF00D4FF)),
+              icon: const Icon(Icons.my_location, color: Color(0xFF00D4FF)),
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
+                  const SnackBar(
                     content: Text('Finding lawyers near you...'),
                     backgroundColor: Color(0xFF4ECDC4),
                     behavior: SnackBarBehavior.floating,
@@ -1185,7 +1185,7 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
             children: [
               // Search Bar
               Container(
-                margin: EdgeInsets.all(20),
+                margin: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -1201,16 +1201,16 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                 ),
                 child: TextField(
                   controller: _searchController,
-                  style: TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Search lawyers by name, expertise, or city...',
-                    hintStyle: TextStyle(color: Colors.white60),
+                    hintStyle: const TextStyle(color: Colors.white60),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    prefixIcon: Icon(Icons.search, color: Color(0xFF00D4FF)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    prefixIcon: const Icon(Icons.search, color: Color(0xFF00D4FF)),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: Icon(Icons.clear, color: Colors.white60),
+                            icon: const Icon(Icons.clear, color: Colors.white60),
                             onPressed: () {
                               _searchController.clear();
                             },
@@ -1222,23 +1222,23 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
 
               // Filter Chips
               _buildFilterChips(),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               // Results Count
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
                     Text(
                       '${_filteredLawyers.length} lawyers found',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 14,
                       ),
                     ),
-                    Spacer(),
+                    const Spacer(),
                     if (_isSearching)
-                      SizedBox(
+                      const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
@@ -1249,14 +1249,14 @@ class _FindLawyerScreenState extends State<FindLawyerScreen>
                   ],
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
 
               // Content Area
               Expanded(
                 child: _showMap
                     ? _buildMapView()
                     : _filteredLawyers.isEmpty
-                        ? Center(
+                        ? const Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

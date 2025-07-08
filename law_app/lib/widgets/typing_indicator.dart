@@ -3,28 +3,28 @@ import 'package:flutter/material.dart';
 class TypingIndicator extends StatelessWidget {
   final AnimationController animation;
 
-  const TypingIndicator({Key? key, required this.animation}) : super(key: key);
+  const TypingIndicator({super.key, required this.animation});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 4),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
               ),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.smart_toy, color: Colors.white, size: 16),
+            child: const Icon(Icons.smart_toy, color: Colors.white, size: 16),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -44,13 +44,13 @@ class TypingIndicator extends StatelessWidget {
                     return Row(
                       children: List.generate(3, (index) {
                         return Container(
-                          margin: EdgeInsets.symmetric(horizontal: 2),
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
                           child: AnimatedContainer(
-                            duration: Duration(milliseconds: 300),
+                            duration: const Duration(milliseconds: 300),
                             width: 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              color: Color(0xFF00D4FF).withOpacity(
+                              color: const Color(0xFF00D4FF).withOpacity(
                                 0.3 + (animation.value * 0.7),
                               ),
                               shape: BoxShape.circle,
@@ -61,8 +61,8 @@ class TypingIndicator extends StatelessWidget {
                     );
                   },
                 ),
-                SizedBox(width: 8),
-                Text(
+                const SizedBox(width: 8),
+                const Text(
                   'AI is typing...',
                   style: TextStyle(
                     color: Colors.white60,

@@ -8,13 +8,13 @@ class ModernActionCard extends StatefulWidget {
   final VoidCallback onTap;
 
   const ModernActionCard({
-    Key? key,
+    super.key,
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.gradient,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   _ModernActionCardState createState() => _ModernActionCardState();
@@ -28,7 +28,7 @@ class _ModernActionCardState extends State<ModernActionCard> with SingleTickerPr
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 150),
       vsync: this,
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
@@ -75,13 +75,13 @@ class _ModernActionCardState extends State<ModernActionCard> with SingleTickerPr
                 ],
               ),
               child: Padding(
-                padding: EdgeInsets.all(16), // Reduced from 20 to 16
+                padding: const EdgeInsets.all(16), // Reduced from 20 to 16
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min, // Added to prevent overflow
                   children: [
                     Container(
-                      padding: EdgeInsets.all(12), // Reduced from 16 to 12
+                      padding: const EdgeInsets.all(12), // Reduced from 16 to 12
                       decoration: BoxDecoration(
                         gradient: LinearGradient(colors: widget.gradient),
                         borderRadius: BorderRadius.circular(12), // Reduced from 16 to 12
@@ -99,11 +99,11 @@ class _ModernActionCardState extends State<ModernActionCard> with SingleTickerPr
                         color: Colors.white,
                       ),
                     ),
-                    SizedBox(height: 12), // Reduced from 16 to 12
+                    const SizedBox(height: 12), // Reduced from 16 to 12
                     Flexible( // Wrapped with Flexible to prevent overflow
                       child: Text(
                         widget.title,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 15, // Reduced from 16 to 15
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
@@ -115,11 +115,11 @@ class _ModernActionCardState extends State<ModernActionCard> with SingleTickerPr
                         overflow: TextOverflow.ellipsis, // Added overflow handling
                       ),
                     ),
-                    SizedBox(height: 2), // Reduced from 4 to 2
+                    const SizedBox(height: 2), // Reduced from 4 to 2
                     Flexible( // Wrapped with Flexible to prevent overflow
                       child: Text(
                         widget.subtitle,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 11, // Reduced from 12 to 11
                           color: Colors.white60,
                           letterSpacing: 0.3,

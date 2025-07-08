@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 
 
 class ChatScreen extends StatefulWidget {
+  const ChatScreen({super.key});
+
   @override
   _ChatScreenState createState() => _ChatScreenState();
 }
@@ -15,14 +17,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late AnimationController _typingController;
-  List<ChatMessage> _messages = [];
+  final List<ChatMessage> _messages = [];
   bool _isTyping = false;
 
   @override
   void initState() {
     super.initState();
     _typingController = AnimationController(
-      duration: Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
     _addWelcomeMessage();
@@ -115,7 +117,7 @@ Future<String> _getAIResponseFromBackend(String userMessage) async {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
@@ -131,16 +133,16 @@ Future<String> _getAIResponseFromBackend(String userMessage) async {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                 ),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.smart_toy, color: Colors.white, size: 20),
+              child: const Icon(Icons.smart_toy, color: Colors.white, size: 20),
             ),
-            SizedBox(width: 12),
-            Column(
+            const SizedBox(width: 12),
+            const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -161,13 +163,13 @@ Future<String> _getAIResponseFromBackend(String userMessage) async {
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.more_vert),
+            icon: const Icon(Icons.more_vert),
             onPressed: () {},
           ),
         ],
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: RadialGradient(
             center: Alignment.topCenter,
             radius: 1.5,
@@ -182,7 +184,7 @@ Future<String> _getAIResponseFromBackend(String userMessage) async {
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: _messages.length + (_isTyping ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (index == _messages.length && _isTyping) {
@@ -200,9 +202,9 @@ Future<String> _getAIResponseFromBackend(String userMessage) async {
                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
               ),
               child: Container(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Color(0xFF1A1D3A).withOpacity(0.9),
+                  color: const Color(0xFF1A1D3A).withOpacity(0.9),
                   border: Border(
                     top: BorderSide(color: Colors.white.withOpacity(0.1)),
                   ),
@@ -225,8 +227,8 @@ Future<String> _getAIResponseFromBackend(String userMessage) async {
                         ),
                         child: TextField(
                           controller: _messageController,
-                          style: TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
                             hintText: 'Ask your legal question...',
                             hintStyle: TextStyle(color: Colors.white60),
                             border: InputBorder.none,
@@ -239,22 +241,22 @@ Future<String> _getAIResponseFromBackend(String userMessage) async {
                         ),
                       ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Container(
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
+                        gradient: const LinearGradient(
                           colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                         ),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Color(0xFF00D4FF).withOpacity(0.3),
+                            color: const Color(0xFF00D4FF).withOpacity(0.3),
                             blurRadius: 15,
                           ),
                         ],
                       ),
                       child: IconButton(
-                        icon: Icon(Icons.send, color: Colors.white),
+                        icon: const Icon(Icons.send, color: Colors.white),
                         onPressed: _sendMessage,
                       ),
                     ),

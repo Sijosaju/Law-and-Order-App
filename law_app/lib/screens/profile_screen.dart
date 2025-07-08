@@ -4,22 +4,22 @@ import 'package:law_app/screens/login_screen.dart';
 import 'package:law_app/services/auth_service.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   Future<void> _logout(BuildContext context) async {
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Logout'),
-        content: Text('Are you sure you want to logout?'),
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Logout', style: TextStyle(color: Colors.red)),
+            child: const Text('Logout', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -40,16 +40,16 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Profile'),
+        title: const Text('Profile'),
         actions: [
           IconButton(
-            icon: Icon(Icons.settings),
+            icon: const Icon(Icons.settings),
             onPressed: () {},
           ),
         ],
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: RadialGradient(
             center: Alignment.topCenter,
             radius: 1.5,
@@ -60,28 +60,28 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
         child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 90),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
           child: Column(
             children: [
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Container(
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     colors: [Color(0xFF00D4FF), Color(0xFF5B73FF)],
                   ),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Color(0xFF00D4FF).withOpacity(0.3),
+                      color: const Color(0xFF00D4FF).withOpacity(0.3),
                       blurRadius: 20,
                     ),
                   ],
                 ),
-                child: Icon(Icons.person, size: 60, color: Colors.white),
+                child: const Icon(Icons.person, size: 60, color: Colors.white),
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
               FutureBuilder<Map<String, String>>(
                 future: AuthService().getUserData(),
                 builder: (context, snapshot) {
@@ -90,7 +90,7 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         Text(
                           snapshot.data!['name'] ?? 'Legal Help User',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -98,7 +98,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         Text(
                           snapshot.data!['email'] ?? 'user@legalhelpindia.com',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 16,
                             color: Colors.white60,
                           ),
@@ -106,7 +106,7 @@ class ProfileScreen extends StatelessWidget {
                       ],
                     );
                   }
-                  return Column(
+                  return const Column(
                     children: [
                       Text(
                         'Loading...',
@@ -127,7 +127,7 @@ class ProfileScreen extends StatelessWidget {
                   );
                 },
               ),
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
               ProfileOption(
                 icon: Icons.history,
                 title: 'Chat History',

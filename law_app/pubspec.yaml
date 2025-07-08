@@ -19,6 +19,9 @@ dependencies:
   google_sign_in: ^6.2.1  # Changed from 7.1.0 to more stable version
   firebase_auth: ^4.17.7
   firebase_core: ^2.31.0
+  pdf: ^3.10.4
+  printing: ^5.11.0
+  path_provider: ^2.1.1
 
 
 

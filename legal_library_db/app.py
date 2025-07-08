@@ -359,6 +359,87 @@ def verify_token():
     except Exception as e:
         logger.error(f"Token verify error: {e}")
         return jsonify(success=False, message="Invalid token"), 401
+# ──────────────────────────────────────────────────────────────────────────────── 
+# LOCATION ROUTES
+# ──────────────────────────────────────────────────────────────────────────────── 
+
+@app.route("/api/locations/states", methods=["GET"])
+def get_states():
+    try:
+        if db is None:
+            return jsonify(error="Database not connected"), 500
+        
+        states = list(db.states.find({}, {"_id": 0}).sort("name", 1))
+        return jsonify(states)
+    except Exception as e:
+        logger.error(f"States fetch error: {e}")
+        return jsonify(error=str(e)), 500
+
+@app.route("/api/locations/districts/<state_code>", methods=["GET"])
+def get_districts(state_code):
+    try:
+        if db is None:
+            return jsonify(error="Database not connected"), 500
+        
+        districts = list(db.districts.find(
+            {"state_code": state_code}, 
+            {"_id": 0}
+        ).sort("name", 1))
+        return jsonify(districts)
+    except Exception as e:
+        logger.error(f"Districts fetch error: {e}")
+        return jsonify(error=str(e)), 500
+
+@app.route("/api/locations/police-stations/<district_code>", methods=["GET"])
+def get_police_stations(district_code):
+    try:
+        if db is None:
+            return jsonify(error="Database not connected"), 500
+        
+        stations = list(db.police_stations.find(
+            {"district_code": district_code}, 
+            {"_id": 0}
+        ).sort("name", 1))
+        return jsonify(stations)
+    except Exception as e:
+        logger.error(f"Police stations fetch error: {e}")
+        return jsonify(error=str(e)), 500
+
+# ──────────────────────────────────────────────────────────────────────────────── 
+# FIR ROUTES
+# ──────────────────────────────────────────────────────────────────────────────── 
+
+@app.route("/api/fir", methods=["POST"])
+def create_fir():
+    try:
+        fir_data = request.get_json()
+        
+        # Store in database
+        if db:
+            db.fir_records.insert_one(fir_data)
+        
+        return jsonify({
+            "success": True,
+            "fir_id": fir_data.get("fir_id"),
+            "message": "FIR created successfully"
+        })
+    except Exception as e:
+        logger.error(f"FIR creation error: {e}")
+        return jsonify(success=False, error=str(e)), 500
+
+@app.route("/api/fir/<fir_id>", methods=["GET"])
+def get_fir(fir_id):
+    try:
+        if db:
+            fir = db.fir_records.find_one({"fir_id": fir_id}, {"_id": 0})
+            if fir:
+                return jsonify(fir)
+        
+        return jsonify(error="FIR not found"), 404
+    except Exception as e:
+        logger.error(f"FIR retrieval error: {e}")
+        return jsonify(error=str(e)), 500
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 #  DATA ROUTES
@@ -512,6 +593,41 @@ def not_found(e):
 def server_error(e):
     logger.error(e)
     return jsonify(error="Internal server error"), 500
+# ──────────────────────────────────────────────────────────────────────────────── 
+# FIR ROUTES
+# ──────────────────────────────────────────────────────────────────────────────── 
+
+@app.route("/api/fir", methods=["POST"])
+def create_fir():
+    try:
+        fir_data = request.get_json()
+        
+        # Store in database
+        if db:
+            db.fir_records.insert_one(fir_data)
+        
+        return jsonify({
+            "success": True,
+            "fir_id": fir_data.get("fir_id"),
+            "message": "FIR created successfully"
+        })
+    except Exception as e:
+        logger.error(f"FIR creation error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/fir/<fir_id>", methods=["GET"])
+def get_fir(fir_id):
+    try:
+        if db:
+            fir = db.fir_records.find_one({"fir_id": fir_id}, {"_id": 0})
+            if fir:
+                return jsonify(fir)
+        
+        return jsonify({"error": "FIR not found"}), 404
+    except Exception as e:
+        logger.error(f"FIR retrieval error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
