@@ -14,24 +14,29 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from math import radians, cos, sin, asin, sqrt
 
-# ────────────────────────────────────────────────────────────────────────────────
-#  ENV / LOGGING
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────── 
+# ENV / LOGGING
+# ──────────────────────────────────────────────────────────────────────────────── 
+
 load_dotenv()
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-# ────────────────────────────────────────────────────────────────────────────────
-#  FLASK APP INIT + CORS
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────── 
+# FLASK APP INIT + CORS
+# ──────────────────────────────────────────────────────────────────────────────── 
+
 app = Flask(__name__)
 CORS(app)
 
-# ────────────────────────────────────────────────────────────────────────────────
-#  MONGODB CONNECTION
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────── 
+# MONGODB CONNECTION
+# ──────────────────────────────────────────────────────────────────────────────── 
+
 mongo_uri = os.getenv("MONGO_URI")
 client, db = None, None
+
 if mongo_uri:
     try:
         client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5_000)
@@ -43,9 +48,10 @@ if mongo_uri:
 else:
     logger.warning("⚠️ MONGO_URI missing in .env")
 
-# ────────────────────────────────────────────────────────────────────────────────
-#  FIREBASE ADMIN INITIALISATION
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────── 
+# FIREBASE ADMIN INITIALISATION
+# ──────────────────────────────────────────────────────────────────────────────── 
+
 def init_firebase_admin():
     try:
         cred_dict = {
@@ -68,9 +74,10 @@ def init_firebase_admin():
 
 fs = init_firebase_admin()
 
-# ────────────────────────────────────────────────────────────────────────────────
-#  UTILITY HELPERS
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────── 
+# UTILITY HELPERS
+# ──────────────────────────────────────────────────────────────────────────────── 
+
 def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
@@ -95,16 +102,15 @@ def send_email_smtp(to_email, subject, html_content):
         if not sender_email or not sender_password:
             logger.error("SMTP credentials not configured")
             return False
-        
+
         message = MIMEMultipart("alternative")
         message["Subject"] = subject
         message["From"] = sender_email
         message["To"] = to_email
 
-        # Use UTF-8 encoding for the HTML content
         html_part = MIMEText(html_content, "html", "utf-8")
         message.attach(html_part)
-        
+
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(sender_email, sender_password)
@@ -113,36 +119,28 @@ def send_email_smtp(to_email, subject, html_content):
         
         logger.info(f"Email sent successfully to {to_email}")
         return True
-        
     except Exception as e:
         logger.error(f"SMTP email failed: {e}")
         return False
 
 def send_verification_email(email, name, verification_link):
     html_content = f"""
-    <html>
-      <body style="font-family: Arial, sans-serif;">
-        <h2>Welcome to LexAid, {name}!</h2>
-        <p>Thank you for creating an account with LexAid.</p>
-        <p>Click the link below to verify your email:</p>
-        <a href="{verification_link}">{verification_link}</a>
-        <p>If you did not create this account, you can ignore this email.</p>
-      </body>
-    </html>
+    <h2>Welcome to LexAid!</h2>
+    <p>Hi {name},</p>
+    <p>Thank you for creating an account with LexAid.</p>
+    <p>Click the link below to verify your email:</p>
+    <a href="{verification_link}">Verify Email</a>
+    <p>If you did not create this account, you can ignore this email.</p>
     """
     return send_email_smtp(email, "Verify Your LexAid Account", html_content)
 
 def send_password_reset_email(email, name, reset_link):
     html_content = f"""
-    <html>
-      <body style="font-family: Arial, sans-serif;">
-        <h2>Password Reset Request</h2>
-        <p>Hi {name},</p>
-        <p>Click the link below to reset your password:</p>
-        <a href="{reset_link}">{reset_link}</a>
-        <p>If you did not request this, you can ignore this email.</p>
-      </body>
-    </html>
+    <h2>Password Reset Request</h2>
+    <p>Hi {name},</p>
+    <p>Click the link below to reset your password:</p>
+    <a href="{reset_link}">Reset Password</a>
+    <p>If you did not request this, you can ignore this email.</p>
     """
     return send_email_smtp(email, "Reset Your LexAid Password", html_content)
 
@@ -161,18 +159,19 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
     return 2 * asin(sqrt(a)) * 6371
 
-# ────────────────────────────────────────────────────────────────────────────────
-#  ROOT + HEALTH
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────── 
+# ROOT + HEALTH
+# ──────────────────────────────────────────────────────────────────────────────── 
+
 @app.route("/")
 def index():
     return jsonify(
         message="✅ Legal Library Backend Running!",
         version="2.0.0",
-        features=["Email Validation", "Password Recovery", "Email Verification"],
+        features=["Email Validation", "Password Recovery", "Email Verification", "FIR Management", "Location Services"],
         endpoints={
             "acts": "/acts",
-            "articles": "/articles",
+            "articles": "/articles", 
             "cases": "/cases",
             "lawyers": "/lawyers",
             "chat": "/chat",
@@ -183,6 +182,15 @@ def index():
                 "forgot_password": "/auth/forgot-password",
                 "resend_verification": "/auth/resend-verification"
             },
+            "locations": {
+                "states": "/api/locations/states",
+                "districts": "/api/locations/districts/<state_code>",
+                "police_stations": "/api/locations/police-stations/<district_code>"
+            },
+            "fir": {
+                "create": "/api/fir",
+                "track": "/api/fir/<fir_id>"
+            }
         },
     )
 
@@ -206,9 +214,10 @@ def health():
 def ping():
     return jsonify(message="pong")
 
-# ────────────────────────────────────────────────────────────────────────────────
-#  AUTHENTICATION ROUTES
-# ────────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────── 
+# AUTHENTICATION ROUTES
+# ──────────────────────────────────────────────────────────────────────────────── 
+
 @app.route("/auth/signup", methods=["POST"])
 def signup():
     try:
@@ -216,19 +225,24 @@ def signup():
         email = data.get("email", "").strip().lower()
         password = data.get("password", "")
         name = data.get("name", "").strip()
+
         if not email or not password or not name:
             return jsonify(success=False, message="All fields are required"), 400
+
         if not is_valid_email(email):
             return jsonify(success=False, message="Invalid email format"), 400
+
         is_strong, password_msg = is_strong_password(password)
         if not is_strong:
             return jsonify(success=False, message=password_msg), 400
+
         user = auth.create_user(
             email=email,
             password=password,
             display_name=name,
             email_verified=False
         )
+
         try:
             verification_link = auth.generate_email_verification_link(email)
             email_sent = send_verification_email(email, name, verification_link)
@@ -236,6 +250,7 @@ def signup():
                 logger.warning(f"Failed to send verification email to {email}")
         except Exception as e:
             logger.error(f"Email verification link generation failed: {e}")
+
         try:
             if fs:
                 fs.collection("users").document(user.uid).set({
@@ -247,13 +262,15 @@ def signup():
                 })
         except Exception as e:
             logger.warning(f"Firestore write failed: {e}")
+
         return jsonify(
-            success=True, 
-            uid=user.uid, 
-            email=user.email, 
+            success=True,
+            uid=user.uid,
+            email=user.email,
             name=user.display_name,
             message="Account created successfully! Please check your email for verification link."
         )
+
     except auth.EmailAlreadyExistsError:
         return jsonify(success=False, message="An account with this email already exists"), 400
     except Exception as e:
@@ -266,29 +283,36 @@ def login():
         data = request.get_json(force=True)
         email = data.get("email", "").strip().lower()
         password = data.get("password", "")
+
         if not email or not password:
             return jsonify(success=False, message="Email and password are required"), 400
+
         if not is_valid_email(email):
             return jsonify(success=False, message="Invalid email format"), 400
+
         try:
             user = auth.get_user_by_email(email)
         except auth.UserNotFoundError:
             return jsonify(success=False, message="Invalid email or password"), 401
+
         if not user.email_verified:
             return jsonify(
-                success=False, 
+                success=False,
                 message="Please verify your email before logging in. Check your inbox for verification link.",
                 email_not_verified=True
             ), 401
+
         custom_token = auth.create_custom_token(user.uid).decode("utf-8")
+
         return jsonify(
-            success=True, 
+            success=True,
             customToken=custom_token,
             uid=user.uid,
             email=user.email,
             name=user.display_name,
             email_verified=user.email_verified
         )
+
     except Exception as e:
         logger.error(f"Login error: {e}")
         return jsonify(success=False, message="Login failed. Please try again."), 401
@@ -298,20 +322,25 @@ def forgot_password():
     try:
         data = request.get_json(force=True)
         email = data.get("email", "").strip().lower()
+
         if not email:
             return jsonify(success=False, message="Email is required"), 400
+
         if not is_valid_email(email):
             return jsonify(success=False, message="Invalid email format"), 400
+
         try:
             user = auth.get_user_by_email(email)
         except auth.UserNotFoundError:
             return jsonify(
-                success=True, 
+                success=True,
                 message="If an account with this email exists, a password reset link has been sent."
             ), 200
+
         try:
             reset_link = auth.generate_password_reset_link(email)
             email_sent = send_password_reset_email(email, user.display_name or "User", reset_link)
+            
             if email_sent:
                 return jsonify(success=True, message="Password reset email sent successfully")
             else:
@@ -319,6 +348,7 @@ def forgot_password():
         except Exception as e:
             logger.error(f"Password reset link generation failed: {e}")
             return jsonify(success=False, message="Failed to generate reset link"), 500
+
     except Exception as e:
         logger.error(f"Password reset error: {e}")
         return jsonify(success=False, message="Password reset failed. Please try again."), 500
@@ -328,22 +358,29 @@ def resend_verification():
     try:
         data = request.get_json(force=True)
         email = data.get("email", "").strip().lower()
+
         if not email:
             return jsonify(success=False, message="Email is required"), 400
+
         if not is_valid_email(email):
             return jsonify(success=False, message="Invalid email format"), 400
+
         try:
             user = auth.get_user_by_email(email)
         except auth.UserNotFoundError:
             return jsonify(success=False, message="No account found with this email"), 404
+
         if user.email_verified:
             return jsonify(success=False, message="Email is already verified"), 400
+
         verification_link = auth.generate_email_verification_link(email)
         email_sent = send_verification_email(email, user.display_name or "User", verification_link)
+
         if email_sent:
             return jsonify(success=True, message="Verification email sent successfully")
         else:
             return jsonify(success=False, message="Failed to send verification email"), 500
+
     except Exception as e:
         logger.error(f"Resend verification error: {e}")
         return jsonify(success=False, message="Failed to resend verification email"), 500
@@ -354,11 +391,14 @@ def verify_token():
         id_token = request.json.get("idToken")
         if not id_token:
             return jsonify(success=False, message="ID token required"), 400
+
         decoded = auth.verify_id_token(id_token)
         return jsonify(success=True, uid=decoded["uid"], claims=decoded)
+
     except Exception as e:
         logger.error(f"Token verify error: {e}")
         return jsonify(success=False, message="Invalid token"), 401
+
 # ──────────────────────────────────────────────────────────────────────────────── 
 # LOCATION ROUTES
 # ──────────────────────────────────────────────────────────────────────────────── 
@@ -414,9 +454,19 @@ def create_fir():
     try:
         fir_data = request.get_json()
         
+        if not fir_data:
+            return jsonify(success=False, error="No data provided"), 400
+        
+        # Validate required fields
+        required_fields = ['fir_id', 'complainant_name', 'category', 'description']
+        for field in required_fields:
+            if not fir_data.get(field):
+                return jsonify(success=False, error=f"Missing required field: {field}"), 400
+        
         # Store in database
-        if db:
+        if db is not None:
             db.fir_records.insert_one(fir_data)
+            logger.info(f"FIR created successfully: {fir_data.get('fir_id')}")
         
         return jsonify({
             "success": True,
@@ -430,7 +480,7 @@ def create_fir():
 @app.route("/api/fir/<fir_id>", methods=["GET"])
 def get_fir(fir_id):
     try:
-        if db:
+        if db is not None:
             fir = db.fir_records.find_one({"fir_id": fir_id}, {"_id": 0})
             if fir:
                 return jsonify(fir)
@@ -440,203 +490,100 @@ def get_fir(fir_id):
         logger.error(f"FIR retrieval error: {e}")
         return jsonify(error=str(e)), 500
 
+# ──────────────────────────────────────────────────────────────────────────────── 
+# LEGAL CONTENT ROUTES (Your existing routes)
+# ──────────────────────────────────────────────────────────────────────────────── 
 
-# ────────────────────────────────────────────────────────────────────────────────
-#  DATA ROUTES
-# ────────────────────────────────────────────────────────────────────────────────
 @app.route("/acts")
 def get_acts():
     try:
         if db is None:
-            return jsonify(error="DB not connected"), 500
-        acts = list(db.acts.find({}, {"_id": 0}))
+            return jsonify(error="Database not connected"), 500
+        
+        acts = list(db.acts.find({}, {"_id": 0}).limit(50))
         return jsonify(acts)
     except Exception as e:
-        logger.error(e)
-        return jsonify(error=str(e)), 500
-
-@app.route("/acts/<act_id>")
-def get_act_sections(act_id):
-    try:
-        if db is None:
-            return jsonify(error="DB not connected"), 500
-        act = db.acts.find_one(
-            {"$or": [{"act_id": act_id}, {"act_name": {"$regex": act_id, "$options": "i"}}]},
-            {"_id": 0},
-        )
-        if not act:
-            return jsonify(error="Act not found"), 404
-        return jsonify(act)
-    except Exception as e:
-        logger.error(e)
+        logger.error(f"Acts fetch error: {e}")
         return jsonify(error=str(e)), 500
 
 @app.route("/articles")
 def get_articles():
     try:
         if db is None:
-            return jsonify(error="DB not connected"), 500
-        return jsonify(list(db.articles.find({}, {"_id": 0})))
+            return jsonify(error="Database not connected"), 500
+        
+        articles = list(db.articles.find({}, {"_id": 0}).limit(50))
+        return jsonify(articles)
     except Exception as e:
-        logger.error(e)
+        logger.error(f"Articles fetch error: {e}")
         return jsonify(error=str(e)), 500
 
 @app.route("/cases")
 def get_cases():
     try:
         if db is None:
-            return jsonify(error="DB not connected"), 500
-        return jsonify(list(db.cases.find({}, {"_id": 0})))
+            return jsonify(error="Database not connected"), 500
+        
+        cases = list(db.cases.find({}, {"_id": 0}).limit(50))
+        return jsonify(cases)
     except Exception as e:
-        logger.error(e)
+        logger.error(f"Cases fetch error: {e}")
         return jsonify(error=str(e)), 500
 
 @app.route("/lawyers")
 def get_lawyers():
     try:
         if db is None:
-            return jsonify(error="DB not connected"), 500
-        q, city, exp, min_rating = (
-            request.args.get("search", "").strip(),
-            request.args.get("city"),
-            request.args.get("expertise"),
-            request.args.get("min_rating", type=float)
-        )
-        lat, lng = request.args.get("lat", type=float), request.args.get("lng", type=float)
-        radius = request.args.get("radius", type=float, default=50)
-        query = {}
-        if exp and exp != "All":
-            query["expertise"] = exp
-        if city and city != "All":
-            query["city"] = city
-        if min_rating:
-            query["rating"] = {"$gte": min_rating}
-        if q:
-            query["$or"] = [
-                {"name": {"$regex": q, "$options": "i"}},
-                {"expertise": {"$regex": q, "$options": "i"}},
-                {"city": {"$regex": q, "$options": "i"}},
-                {"description": {"$regex": q, "$options": "i"}},
-            ]
-        lawyers = list(db.lawyers.find(query, {"_id": 0}))
-        if lat and lng:
-            lawyers = [
-                {**lw, "distance": calculate_distance(lat, lng, lw["latitude"], lw["longitude"])}
-                for lw in lawyers
-                if "latitude" in lw and "longitude" in lw
-                and calculate_distance(lat, lng, lw["latitude"], lw["longitude"]) <= radius
-            ]
-            lawyers.sort(key=lambda x: x["distance"])
+            return jsonify(error="Database not connected"), 500
+        
+        lawyers = list(db.lawyers.find({}, {"_id": 0}).limit(50))
         return jsonify(lawyers)
     except Exception as e:
-        logger.error(e)
+        logger.error(f"Lawyers fetch error: {e}")
         return jsonify(error=str(e)), 500
 
-@app.route("/chat", methods=["POST", "OPTIONS"])
+@app.route("/chat", methods=["POST"])
 def chat():
-    if request.method == "OPTIONS":
-        return jsonify(message="CORS preflight OK"), 200
     try:
-        user_msg = (request.get_json() or {}).get("message", "").strip()
-        if not user_msg:
-            return jsonify(reply="❌ No message provided"), 400
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        if not api_key:
-            return jsonify(reply="❌ AI service not configured"), 500
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": os.getenv("SITE_URL", "https://law-and-order-app.onrender.com"),
-            "X-Title": os.getenv("SITE_TITLE", "LexAid"),
-        }
-        payload = {
-            "model": "deepseek/deepseek-chat",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a helpful legal assistant for Indian law. "
-                        "Provide accurate information while noting that you cannot provide legal advice "
-                        "and users should consult qualified lawyers for specific matters."
-                    ),
-                },
-                {"role": "user", "content": user_msg},
-            ],
-            "max_tokens": 1000,
-            "temperature": 0.7,
-        }
-        resp = requests.post("https://openrouter.ai/api/v1/chat/completions",
-                             headers=headers, data=json.dumps(payload), timeout=30)
-        if resp.status_code == 200:
-            reply = resp.json()["choices"][0]["message"]["content"]
-            return jsonify(reply=reply)
-        return jsonify(reply="❌ AI error", detail=resp.text[:200]), 500
-    except requests.exceptions.Timeout:
-        return jsonify(reply="❌ Request timeout"), 500
+        data = request.get_json()
+        message = data.get("message", "")
+        
+        if not message:
+            return jsonify(error="Message is required"), 400
+        
+        # Simple echo response for now
+        response = f"You asked: {message}. This is a placeholder response."
+        
+        return jsonify({
+            "response": response,
+            "timestamp": "2025-07-08T17:07:00Z"
+        })
     except Exception as e:
-        logger.error(e)
-        return jsonify(reply="❌ Server error"), 500
+        logger.error(f"Chat error: {e}")
+        return jsonify(error=str(e)), 500
 
-@app.route("/debug/db-status")
-def debug_db_status():
-    ok, msg = validate_db_connection()
-    if not ok:
-        return jsonify(status="error", message=msg), 500
-    collections = db.list_collection_names()
-    return jsonify(status="connected", collections=collections)
+# ──────────────────────────────────────────────────────────────────────────────── 
+# ERROR HANDLERS
+# ──────────────────────────────────────────────────────────────────────────────── 
 
 @app.errorhandler(404)
-def not_found(e):
+def not_found(error):
     return jsonify(error="Endpoint not found"), 404
 
 @app.errorhandler(500)
-def server_error(e):
-    logger.error(e)
+def internal_error(error):
     return jsonify(error="Internal server error"), 500
+
+@app.errorhandler(400)
+def bad_request(error):
+    return jsonify(error="Bad request"), 400
+
 # ──────────────────────────────────────────────────────────────────────────────── 
-# FIR ROUTES
+# APP RUNNER
 # ──────────────────────────────────────────────────────────────────────────────── 
-
-@app.route("/api/fir", methods=["POST"])
-def create_fir():
-    try:
-        fir_data = request.get_json()
-        
-        # Store in database
-        if db:
-            db.fir_records.insert_one(fir_data)
-        
-        return jsonify({
-            "success": True,
-            "fir_id": fir_data.get("fir_id"),
-            "message": "FIR created successfully"
-        })
-    except Exception as e:
-        logger.error(f"FIR creation error: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/api/fir/<fir_id>", methods=["GET"])
-def get_fir(fir_id):
-    try:
-        if db:
-            fir = db.fir_records.find_one({"fir_id": fir_id}, {"_id": 0})
-            if fir:
-                return jsonify(fir)
-        
-        return jsonify({"error": "FIR not found"}), 404
-    except Exception as e:
-        logger.error(f"FIR retrieval error: {e}")
-        return jsonify({"error": str(e)}), 500
-
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
-    debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
-    logger.info(f"🚀 Flask API running on 0.0.0.0:{port} | Debug={debug_mode}")
-    logger.info(f"Mongo connected: {db is not None}")
-    logger.info(f"Firebase Admin: {fs is not None}")
-    logger.info(f"Email service: {bool(os.getenv('SMTP_EMAIL'))}")
-    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+    app.run(debug=True, host="0.0.0.0", port=5000)
 
 
 
