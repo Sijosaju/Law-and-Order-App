@@ -13,6 +13,8 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from math import radians, cos, sin, asin, sqrt
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
 
 # ──────────────────────────────────────────────────────────────────────────────── 
 # ENV / LOGGING
@@ -158,6 +160,86 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     dlat, dlon = lat2 - lat1, lon2 - lon1
     a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
     return 2 * asin(sqrt(a)) * 6371
+
+def get_district_coordinates(state_name, district_name):
+    """Get latitude and longitude for a district"""
+    try:
+        geolocator = Nominatim(user_agent="law_app")
+        location = geolocator.geocode(f"{district_name}, {state_name}, India")
+        
+        if location:
+            return {
+                'lat': location.latitude,
+                'lng': location.longitude
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Geocoding error: {e}")
+        return None
+
+def search_nearby_police_stations(lat, lng, district_name):
+    """Search for police stations using OpenStreetMap Overpass API"""
+    try:
+        # Overpass API query for police stations within 15km
+        overpass_url = "http://overpass-api.de/api/interpreter"
+        overpass_query = f"""
+        [out:json][timeout:25];
+        (
+          node["amenity"="police"](around:15000,{lat},{lng});
+          way["amenity"="police"](around:15000,{lat},{lng});
+          relation["amenity"="police"](around:15000,{lat},{lng});
+        );
+        out center meta;
+        """
+        
+        response = requests.post(overpass_url, data=overpass_query, timeout=30)
+        data = response.json()
+        
+        stations = []
+        for element in data.get('elements', []):
+            # Get coordinates
+            if 'lat' in element and 'lon' in element:
+                station_lat, station_lon = element['lat'], element['lon']
+            elif 'center' in element:
+                station_lat, station_lon = element['center']['lat'], element['center']['lon']
+            else:
+                continue
+            
+            # Calculate distance
+            distance = geodesic((lat, lng), (station_lat, station_lon)).kilometers
+            
+            # Get station details
+            tags = element.get('tags', {})
+            station_name = tags.get('name', f'Police Station near {district_name}')
+            
+            stations.append({
+                'code': f"PS_{element.get('id', len(stations))}",
+                'name': station_name,
+                'latitude': station_lat,
+                'longitude': station_lon,
+                'distance_km': round(distance, 2),
+                'address': f"{tags.get('addr:street', '')} {tags.get('addr:city', '')}".strip(),
+                'phone': tags.get('phone', ''),
+                'source': 'openstreetmap'
+            })
+        
+        # Sort by distance and limit to 10 closest
+        stations.sort(key=lambda x: x['distance_km'])
+        return stations[:10]
+        
+    except Exception as e:
+        logger.error(f"Police station search error: {e}")
+        # Fallback to a few generic stations if API fails
+        return [
+            {
+                'code': f"PS_MAIN_{district_name.replace(' ', '_').upper()}",
+                'name': f"{district_name} Main Police Station",
+                'distance_km': 0.0,
+                'address': f"Main area, {district_name}",
+                'phone': '',
+                'source': 'fallback'
+            }
+        ]
 
 # ──────────────────────────────────────────────────────────────────────────────── 
 # ROOT + HEALTH
@@ -410,6 +492,7 @@ def get_states():
             return jsonify(error="Database not connected"), 500
         
         states = list(db.states.find({}, {"_id": 0}).sort("name", 1))
+        logger.info(f"Retrieved {len(states)} states")
         return jsonify(states)
     except Exception as e:
         logger.error(f"States fetch error: {e}")
@@ -425,6 +508,7 @@ def get_districts(state_code):
             {"state_code": state_code}, 
             {"_id": 0}
         ).sort("name", 1))
+        logger.info(f"Retrieved {len(districts)} districts for state {state_code}")
         return jsonify(districts)
     except Exception as e:
         logger.error(f"Districts fetch error: {e}")
@@ -436,11 +520,41 @@ def get_police_stations(district_code):
         if db is None:
             return jsonify(error="Database not connected"), 500
         
-        stations = list(db.police_stations.find(
-            {"district_code": district_code}, 
-            {"_id": 0}
-        ).sort("name", 1))
-        return jsonify(stations)
+        # Get district information
+        district = db.districts.find_one({"code": district_code}, {"_id": 0})
+        if not district:
+            return jsonify(error="District not found"), 404
+        
+        # Get coordinates for the district
+        district_coords = get_district_coordinates(
+            district['state_name'], 
+            district['name']
+        )
+        
+        if not district_coords:
+            logger.warning(f"Could not get coordinates for {district['name']}")
+            # Return fallback stations
+            return jsonify([
+                {
+                    'code': f"PS_MAIN_{district['name'].replace(' ', '_').upper()}",
+                    'name': f"{district['name']} Main Police Station",
+                    'distance_km': 0.0,
+                    'address': f"Main area, {district['name']}",
+                    'phone': '',
+                    'source': 'fallback'
+                }
+            ])
+        
+        # Search for nearby police stations
+        nearby_stations = search_nearby_police_stations(
+            district_coords['lat'], 
+            district_coords['lng'],
+            district['name']
+        )
+        
+        logger.info(f"Retrieved {len(nearby_stations)} police stations for district {district_code}")
+        return jsonify(nearby_stations)
+        
     except Exception as e:
         logger.error(f"Police stations fetch error: {e}")
         return jsonify(error=str(e)), 500
@@ -465,8 +579,11 @@ def create_fir():
         
         # Store in database
         if db is not None:
-            db.fir_records.insert_one(fir_data)
-            logger.info(f"FIR created successfully: {fir_data.get('fir_id')}")
+            result = db.fir_records.insert_one(fir_data)
+            logger.info(f"FIR created successfully: {fir_data.get('fir_id')} with MongoDB ID: {result.inserted_id}")
+        else:
+            logger.error("Database not connected - FIR not saved")
+            return jsonify(success=False, error="Database not connected"), 500
         
         return jsonify({
             "success": True,
@@ -483,7 +600,13 @@ def get_fir(fir_id):
         if db is not None:
             fir = db.fir_records.find_one({"fir_id": fir_id}, {"_id": 0})
             if fir:
+                logger.info(f"FIR retrieved successfully: {fir_id}")
                 return jsonify(fir)
+            else:
+                logger.warning(f"FIR not found: {fir_id}")
+        else:
+            logger.error("Database not connected")
+            return jsonify(error="Database not connected"), 500
         
         return jsonify(error="FIR not found"), 404
     except Exception as e:
@@ -491,7 +614,7 @@ def get_fir(fir_id):
         return jsonify(error=str(e)), 500
 
 # ──────────────────────────────────────────────────────────────────────────────── 
-# LEGAL CONTENT ROUTES (Your existing routes)
+# LEGAL CONTENT ROUTES
 # ──────────────────────────────────────────────────────────────────────────────── 
 
 @app.route("/acts")
@@ -584,8 +707,6 @@ def bad_request(error):
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
-
-
 
 
 

@@ -245,41 +245,45 @@ class _TrackCaseScreenState extends State<TrackCaseScreen> {
       ),
     );
   }
+void _searchFir() async {
+  if (_caseIdController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Please enter a FIR ID')),
+    );
+    return;
+  }
 
-  void _searchFir() async {
-    if (_caseIdController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter a FIR ID')),
-      );
-      return;
-    }
+  setState(() => _isLoading = true);
 
-    setState(() => _isLoading = true);
-
-    try {
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/fir/${_caseIdController.text}'),
-      );
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _firDetails = data;
-          _isLoading = false;
-        });
-      } else {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('FIR not found')),
-        );
-      }
-    } catch (e) {
+  try {
+    final response = await http.get(
+      Uri.parse('https://your-render-app-name.onrender.com/api/fir/${_caseIdController.text}'), // Update with your actual Render URL
+    );
+    
+    print('Search response status: ${response.statusCode}');
+    print('Search response body: ${response.body}');
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        _firDetails = data;
+        _isLoading = false;
+      });
+    } else {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(content: Text('FIR not found')),
       );
     }
+  } catch (e) {
+    setState(() => _isLoading = false);
+    print('Search error: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Network error: ${e.toString()}')),
+    );
   }
+}
+
 
   void _downloadFirPdf() async {
     // Re-generate PDF with stored data

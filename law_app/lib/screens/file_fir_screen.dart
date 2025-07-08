@@ -13,6 +13,9 @@ class FileFirScreen extends StatefulWidget {
 class _FileFirScreenState extends State<FileFirScreen> {
   final _formKey = GlobalKey<FormState>();
   
+  // Backend URL - Update with your actual Render deployment URL
+  final String backendUrl = 'https://your-render-app-name.onrender.com';
+  
   // Personal Details Controllers
   final _nameController = TextEditingController();
   final _fatherNameController = TextEditingController();
@@ -27,7 +30,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
   final _propertyDetailsController = TextEditingController();
   final _accusedDetailsController = TextEditingController();
   
-  // Replace static lists with dynamic ones
+  // Dynamic lists for location data
   List<Map<String, dynamic>> _states = [];
   List<Map<String, dynamic>> _districts = [];
   List<Map<String, dynamic>> _policeStations = [];
@@ -57,19 +60,25 @@ class _FileFirScreenState extends State<FileFirScreen> {
   Future<void> _loadStates() async {
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/locations/states'), // Update with your backend URL
-      );
+        Uri.parse('$backendUrl/api/locations/states'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 30));
       
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           _states = data.cast<Map<String, dynamic>>();
         });
+      } else {
+        throw Exception('Failed to load states: ${response.statusCode}');
       }
     } catch (e) {
       print('Error loading states: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load states')),
+        SnackBar(
+          content: Text('Failed to load states. Please check your internet connection.'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -85,8 +94,9 @@ class _FileFirScreenState extends State<FileFirScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/locations/districts/$stateCode'),
-      );
+        Uri.parse('$backendUrl/api/locations/districts/$stateCode'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 30));
       
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -94,12 +104,17 @@ class _FileFirScreenState extends State<FileFirScreen> {
           _districts = data.cast<Map<String, dynamic>>();
           _loadingDistricts = false;
         });
+      } else {
+        throw Exception('Failed to load districts: ${response.statusCode}');
       }
     } catch (e) {
       setState(() => _loadingDistricts = false);
       print('Error loading districts: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load districts')),
+        SnackBar(
+          content: Text('Failed to load districts'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -113,8 +128,9 @@ class _FileFirScreenState extends State<FileFirScreen> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:5000/api/locations/police-stations/$districtCode'),
-      );
+        Uri.parse('$backendUrl/api/locations/police-stations/$districtCode'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 30));
       
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -122,12 +138,17 @@ class _FileFirScreenState extends State<FileFirScreen> {
           _policeStations = data.cast<Map<String, dynamic>>();
           _loadingStations = false;
         });
+      } else {
+        throw Exception('Failed to load police stations: ${response.statusCode}');
       }
     } catch (e) {
       setState(() => _loadingStations = false);
       print('Error loading police stations: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load police stations')),
+        SnackBar(
+          content: Text('Failed to load police stations'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -349,7 +370,24 @@ class _FileFirScreenState extends State<FileFirScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Police Station', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+        Row(
+          children: [
+            Text('Police Station', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+            if (_policeStations.isNotEmpty)
+              Container(
+                margin: EdgeInsets.only(left: 8),
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Color(0xFF4ECDC4),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${_policeStations.length} nearby',
+                  style: TextStyle(color: Colors.white, fontSize: 10),
+                ),
+              ),
+          ],
+        ),
         SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
@@ -370,7 +408,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
                         ),
                       ),
                       SizedBox(width: 12),
-                      Text('Loading police stations...', style: TextStyle(color: Colors.white60)),
+                      Text('Finding nearby police stations...', style: TextStyle(color: Colors.white60)),
                     ],
                   ),
                 )
@@ -387,7 +425,28 @@ class _FileFirScreenState extends State<FileFirScreen> {
                   items: _policeStations.map((station) {
                     return DropdownMenuItem<String>(
                       value: station['code'],
-                      child: Text(station['name']),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            station['name'],
+                            style: TextStyle(fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (station['distance_km'] != null)
+                            Text(
+                              '${station['distance_km']} km away',
+                              style: TextStyle(fontSize: 12, color: Colors.white60),
+                            ),
+                          if (station['address'] != null && station['address'].toString().isNotEmpty)
+                            Text(
+                              station['address'].toString(),
+                              style: TextStyle(fontSize: 11, color: Colors.white60),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
                     );
                   }).toList(),
                   onChanged: _selectedDistrict == null ? null : (value) {
@@ -401,7 +460,102 @@ class _FileFirScreenState extends State<FileFirScreen> {
                   },
                 ),
         ),
+        
+        // Add map view button if stations are loaded
+        if (_policeStations.isNotEmpty)
+          Container(
+            margin: EdgeInsets.only(top: 12),
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _showPoliceStationMap(),
+              icon: Icon(Icons.map, size: 16),
+              label: Text('View on Map'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF4ECDC4),
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
       ],
+    );
+  }
+
+  void _showPoliceStationMap() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Color(0xFF1A1D3A),
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(
+              'Nearby Police Stations',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _policeStations.length,
+                itemBuilder: (context, index) {
+                  final station = _policeStations[index];
+                  return Card(
+                    color: Colors.white.withOpacity(0.1),
+                    margin: EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: Icon(Icons.local_police, color: Color(0xFF4ECDC4)),
+                      title: Text(
+                        station['name'],
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (station['distance_km'] != null)
+                            Text(
+                              '${station['distance_km']} km away',
+                              style: TextStyle(color: Color(0xFF00D4FF)),
+                            ),
+                          if (station['address'] != null && station['address'].toString().isNotEmpty)
+                            Text(
+                              station['address'].toString(),
+                              style: TextStyle(color: Colors.white60),
+                            ),
+                        ],
+                      ),
+                      trailing: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            _selectedPoliceStation = station['code'];
+                          });
+                        },
+                        child: Text('Select'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF4ECDC4),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -579,61 +733,97 @@ class _FileFirScreenState extends State<FileFirScreen> {
 
   void _generateOfficialFIR() async {
     if (_formKey.currentState!.validate()) {
-      // Find selected names for display
-      String stateName = _states.firstWhere((s) => s['code'] == _selectedState)['name'];
-      String districtName = _districts.firstWhere((d) => d['code'] == _selectedDistrict)['name'];
-      String stationName = _policeStations.firstWhere((p) => p['code'] == _selectedPoliceStation)['name'];
-      
-      // Generate unique FIR ID
-      String firId = 'FIR${DateTime.now().millisecondsSinceEpoch}';
-      
-      // Create FIR data
-      Map<String, dynamic> firData = {
-        'fir_id': firId,
-        'state_code': _selectedState,
-        'state_name': stateName,
-        'district_code': _selectedDistrict,
-        'district_name': districtName,
-        'police_station_code': _selectedPoliceStation,
-        'police_station_name': stationName,
-        'complainant_name': _nameController.text,
-        'father_name': _fatherNameController.text,
-        'age': _ageController.text,
-        'occupation': _occupationController.text,
-        'address': _addressController.text,
-        'phone': _phoneController.text,
-        'category': _selectedCategory,
-        'incident_date': _incidentDate.toIso8601String(),
-        'incident_time': _incidentTime.format(context),
-        'incident_location': _incidentLocationController.text,
-        'description': _incidentDescriptionController.text,
-        'property_details': _propertyDetailsController.text,
-        'accused_details': _accusedDetailsController.text,
-        'created_at': DateTime.now().toIso8601String(),
-        'status': 'PDF Generated',
-      };
-      
-      // Save to backend
-      await _saveFIRToBackend(firData);
-      
-      // Generate PDF
-      await _generatePDF(firData);
-      
-      // Show success dialog
-      _showSuccessDialog(firId);
+      try {
+        // Add null checks
+        if (_selectedState == null || _selectedDistrict == null || _selectedPoliceStation == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Please select all location fields')),
+          );
+          return;
+        }
+
+        // Find selected names with null safety
+        String stateName = _states.firstWhere(
+          (s) => s['code'] == _selectedState,
+          orElse: () => {'name': 'Unknown State'}
+        )['name'];
+        
+        String districtName = _districts.firstWhere(
+          (d) => d['code'] == _selectedDistrict,
+          orElse: () => {'name': 'Unknown District'}
+        )['name'];
+        
+        String stationName = _policeStations.firstWhere(
+          (p) => p['code'] == _selectedPoliceStation,
+          orElse: () => {'name': 'Unknown Police Station'}
+        )['name'];
+        
+        // Generate unique FIR ID
+        String firId = 'FIR${DateTime.now().millisecondsSinceEpoch}';
+        
+        print('Generated FIR ID: $firId'); // Debug log
+        
+        // Create FIR data
+        Map<String, dynamic> firData = {
+          'fir_id': firId,
+          'state_code': _selectedState,
+          'state_name': stateName,
+          'district_code': _selectedDistrict,
+          'district_name': districtName,
+          'police_station_code': _selectedPoliceStation,
+          'police_station_name': stationName,
+          'complainant_name': _nameController.text,
+          'father_name': _fatherNameController.text,
+          'age': _ageController.text,
+          'occupation': _occupationController.text,
+          'address': _addressController.text,
+          'phone': _phoneController.text,
+          'category': _selectedCategory,
+          'incident_date': _incidentDate.toIso8601String(),
+          'incident_time': _incidentTime.format(context),
+          'incident_location': _incidentLocationController.text,
+          'description': _incidentDescriptionController.text,
+          'property_details': _propertyDetailsController.text,
+          'accused_details': _accusedDetailsController.text,
+          'created_at': DateTime.now().toIso8601String(),
+          'status': 'PDF Generated',
+        };
+        
+        print('FIR Data: ${json.encode(firData)}'); // Debug log
+        
+        // Save to backend FIRST
+        await _saveFIRToBackend(firData);
+        
+        // Generate PDF
+        await _generatePDF(firData);
+        
+        // Show success dialog
+        _showSuccessDialog(firId);
+        
+      } catch (e) {
+        print('Error in FIR generation: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating FIR: $e')),
+        );
+      }
     }
   }
 
   Future<void> _saveFIRToBackend(Map<String, dynamic> firData) async {
     try {
       final response = await http.post(
-        Uri.parse('http://127.0.0.1:5000/api/fir'), // Update with your backend URL
+        Uri.parse('$backendUrl/api/fir'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(firData),
-      );
+      ).timeout(Duration(seconds: 30));
+      
+      print('Save response status: ${response.statusCode}');
+      print('Save response body: ${response.body}');
       
       if (response.statusCode == 200) {
         print('FIR saved to backend successfully');
+      } else {
+        print('Failed to save FIR: ${response.statusCode}');
       }
     } catch (e) {
       print('Error saving FIR: $e');
@@ -743,7 +933,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
             pw.SizedBox(height: 15),
             
             // Property Details
-            if (firData['property_details'].isNotEmpty)
+            if (firData['property_details'].toString().isNotEmpty)
               pw.Container(
                 width: double.infinity,
                 padding: pw.EdgeInsets.all(10),
@@ -762,7 +952,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
             pw.SizedBox(height: 15),
             
             // Accused Details
-            if (firData['accused_details'].isNotEmpty)
+            if (firData['accused_details'].toString().isNotEmpty)
               pw.Container(
                 width: double.infinity,
                 padding: pw.EdgeInsets.all(10),
@@ -854,8 +1044,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Only close the dialog - fixes white screen issue
             },
             child: Text('OK', style: TextStyle(color: Color(0xFF00D4FF))),
           ),
