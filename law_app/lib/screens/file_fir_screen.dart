@@ -5,6 +5,8 @@ import 'package:printing/printing.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 class FileFirScreen extends StatefulWidget {
   @override
@@ -554,7 +556,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
             Spacer(),
             if (_policeStations.isNotEmpty)
               ElevatedButton.icon(
-                onPressed: () => _showPoliceStationMap(),
+                onPressed: _policeStations.isEmpty ? null : _showPoliceStationMap,
                 icon: Icon(Icons.map, size: 16),
                 label: Text('View Map'),
                 style: ElevatedButton.styleFrom(
@@ -658,105 +660,147 @@ class _FileFirScreenState extends State<FileFirScreen> {
       ],
     );
   }
+  /// Mini-map showing all loaded police stations
+Widget _buildStationMap() {
+  if (_policeStations.isEmpty) return const SizedBox.shrink();
 
-  void _showPoliceStationMap() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Color(0xFF1A1D3A),
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  final first = _policeStations.first;
+
+  // 1️⃣  use `child:` instead of `builder:`
+  final markers = _policeStations.map((s) => Marker(
+        point: LatLng(s['latitude'], s['longitude']),
+        width: 40,
+        height: 40,
+        child: const Icon(Icons.local_police,      // ← here
+            size: 30, color: Color(0xFF4ECDC4)),
+      )).toList();
+
+  // 2️⃣  centre/zoom fields were renamed in v6
+  return FlutterMap(
+    options: MapOptions(
+      initialCenter: LatLng(first['latitude'], first['longitude']),
+      initialZoom: 11,
+    ),
+    children: [
+       TileLayer(
+        urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        subdomains: ['a', 'b', 'c'],
+        userAgentPackageName: 'com.example.law_app',
       ),
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        padding: EdgeInsets.all(16),
+      MarkerLayer(markers: markers),   // 3️⃣  markers already a List<Marker>
+    ],
+  );
+}
+
+
+
+void _showPoliceStationMap() {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: const Color(0xFF1A1D3A),
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => DraggableScrollableSheet(
+      expand: false,
+      builder: (context, scrollController) => SafeArea(
         child: Column(
           children: [
-            Row(
-              children: [
-                Text(
-                  'Police Stations',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Spacer(),
-                if (_useCurrentLocation)
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Color(0xFF4ECDC4).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.my_location, size: 14, color: Color(0xFF4ECDC4)),
-                        SizedBox(width: 4),
-                        Text(
-                          'Near You',
-                          style: TextStyle(color: Color(0xFF4ECDC4), fontSize: 12),
-                        ),
-                      ],
+            // ── Header ───────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const Text(
+                    'Police Stations',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close, color: Colors.white),
-                ),
-              ],
+                  const Spacer(),
+                  if (_useCurrentLocation)
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4ECDC4).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.my_location,
+                              size: 14, color: Color(0xFF4ECDC4)),
+                          SizedBox(width: 4),
+                          Text('Near You',
+                              style: TextStyle(
+                                  color: Color(0xFF4ECDC4), fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
             ),
-            SizedBox(height: 16),
+            // ── Mini-map ─────────────────────────────────────────
+            SizedBox(height: 200, child: _buildStationMap()),
+            const SizedBox(height: 8),
+            // ── Scrollable list ─────────────────────────────────
             Expanded(
               child: ListView.builder(
+                controller: scrollController,
                 itemCount: _policeStations.length,
                 itemBuilder: (context, index) {
                   final station = _policeStations[index];
                   return Card(
                     color: Colors.white.withOpacity(0.1),
-                    margin: EdgeInsets.only(bottom: 8),
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
                     child: ListTile(
-                      leading: Icon(Icons.local_police, color: Color(0xFF4ECDC4)),
+                      leading: const Icon(Icons.local_police,
+                          color: Color(0xFF4ECDC4)),
                       title: Text(
                         station['name'],
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w500),
                         overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (station['distance_km'] != null)
-                            Text(
-                              '${station['distance_km']} km away',
-                              style: TextStyle(color: Color(0xFF00D4FF), fontWeight: FontWeight.w500),
-                            ),
-                          if (station['address'] != null && station['address'].toString().isNotEmpty)
-                            Text(
-                              station['address'].toString(),
-                              style: TextStyle(color: Colors.white60),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            Text('${station['distance_km']} km away',
+                                style: const TextStyle(
+                                    color: Color(0xFF00D4FF),
+                                    fontWeight: FontWeight.w500)),
+                          if (station['address'] != null &&
+                              station['address'].toString().isNotEmpty)
+                            Text(station['address'],
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.white60)),
                           if (station['district'] != null)
-                            Text(
-                              'District: ${station['district']}',
-                              style: TextStyle(color: Colors.white60, fontSize: 12),
-                            ),
+                            Text('District: ${station['district']}',
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.white60)),
                         ],
                       ),
                       trailing: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          setState(() {
-                            _selectedPoliceStation = station['code'];
-                          });
-                        },
-                        child: Text('Select'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Color(0xFF4ECDC4),
+                          backgroundColor: const Color(0xFF4ECDC4),
                           foregroundColor: Colors.white,
                         ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          setState(() => _selectedPoliceStation =
+                              station['code']);
+                        },
+                        child: const Text('Select'),
                       ),
                     ),
                   );
@@ -766,8 +810,10 @@ class _FileFirScreenState extends State<FileFirScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Widget _buildInputField(String label, TextEditingController controller, IconData icon, {int maxLines = 1}) {
     return Column(
