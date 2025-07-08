@@ -43,7 +43,8 @@ class _FileFirScreenState extends State<FileFirScreen> {
   
   bool _loadingDistricts = false;
   bool _loadingStations = false;
-  bool _usingLocationBasedSearch = false;
+  bool _useCurrentLocation = false;
+  bool _loadingLocation = false;
   
   DateTime _incidentDate = DateTime.now();
   TimeOfDay _incidentTime = TimeOfDay.now();
@@ -92,7 +93,6 @@ class _FileFirScreenState extends State<FileFirScreen> {
       _policeStations.clear();
       _selectedDistrict = null;
       _selectedPoliceStation = null;
-      _usingLocationBasedSearch = false;
     });
 
     try {
@@ -122,12 +122,11 @@ class _FileFirScreenState extends State<FileFirScreen> {
     }
   }
 
-  Future<void> _loadPoliceStations(String districtCode) async {
+  Future<void> _loadPoliceStationsForDistrict(String districtCode) async {
     setState(() {
       _loadingStations = true;
       _policeStations.clear();
       _selectedPoliceStation = null;
-      _usingLocationBasedSearch = false;
     });
 
     try {
@@ -157,47 +156,38 @@ class _FileFirScreenState extends State<FileFirScreen> {
     }
   }
 
-  Future<void> _findNearbyPoliceStations() async {
+  Future<void> _loadNearbyPoliceStations() async {
+    setState(() {
+      _loadingLocation = true;
+      _loadingStations = true;
+      _policeStations.clear();
+      _selectedPoliceStation = null;
+    });
+
     try {
       // Check location permissions
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Location permission is required to find nearby police stations'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-          return;
+          throw Exception('Location permission denied');
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Location permission is permanently denied. Please enable it in settings.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
+        throw Exception('Location permission permanently denied');
       }
-
-      // Show loading state
-      setState(() {
-        _loadingStations = true;
-        _policeStations.clear();
-        _selectedPoliceStation = null;
-        _usingLocationBasedSearch = true;
-      });
 
       // Get current position
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: Duration(seconds: 10),
       );
-      
+
+      setState(() {
+        _loadingLocation = false;
+      });
+
       // Call backend API for nearby stations
       final response = await http.post(
         Uri.parse('$backendUrl/api/locations/police-stations-nearby'),
@@ -205,7 +195,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
         body: json.encode({
           'latitude': position.latitude,
           'longitude': position.longitude,
-          'radius': 20 // 20km radius
+          'radius': 20
         }),
       ).timeout(Duration(seconds: 30));
       
@@ -215,50 +205,34 @@ class _FileFirScreenState extends State<FileFirScreen> {
           _policeStations = data.cast<Map<String, dynamic>>();
           _loadingStations = false;
         });
-        
-        // Show success message
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Found ${_policeStations.length} nearby police stations'),
             backgroundColor: Colors.green,
-            action: SnackBarAction(
-              label: 'View Map',
-              textColor: Colors.white,
-              onPressed: () => _showPoliceStationMap(),
-            ),
           ),
         );
-        
-        // Clear district selection since we're using location-based search
-        setState(() {
-          _selectedDistrict = null;
-        });
-        
       } else {
         throw Exception('Failed to load nearby stations: ${response.statusCode}');
       }
     } catch (e) {
       setState(() {
+        _loadingLocation = false;
         _loadingStations = false;
-        _usingLocationBasedSearch = false;
+        _useCurrentLocation = false;
       });
-      
-      String errorMessage = 'Could not find nearby police stations';
-      if (e.toString().contains('TimeoutException')) {
-        errorMessage = 'Request timed out. Please try again.';
+
+      String errorMessage = 'Could not get nearby police stations';
+      if (e.toString().contains('permission')) {
+        errorMessage = 'Location permission is required to find nearby police stations';
       } else if (e.toString().contains('LocationServiceDisabledException')) {
-        errorMessage = 'Please enable location services and try again.';
+        errorMessage = 'Please enable location services and try again';
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
           backgroundColor: Colors.red,
-          action: SnackBarAction(
-            label: 'Retry',
-            textColor: Colors.white,
-            onPressed: _findNearbyPoliceStations,
-          ),
         ),
       );
     }
@@ -271,15 +245,6 @@ class _FileFirScreenState extends State<FileFirScreen> {
         title: Text('File FIR - Official Format'),
         backgroundColor: Color(0xFF1A1D3A),
         elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: _findNearbyPoliceStations,
-            icon: Icon(Icons.my_location),
-            tooltip: 'Find Nearby Police Stations',
-            color: Color(0xFF4ECDC4),
-          ),
-          SizedBox(width: 8),
-        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -314,10 +279,15 @@ class _FileFirScreenState extends State<FileFirScreen> {
                 _buildSectionHeader('Location Details'),
                 _buildStateDropdown(),
                 SizedBox(height: 15),
-                if (!_usingLocationBasedSearch) ...[
-                  _buildDistrictDropdown(),
+                _buildDistrictDropdown(),
+                SizedBox(height: 15),
+                
+                // Current Location Toggle - Placed after district selection
+                if (_selectedDistrict != null) ...[
+                  _buildCurrentLocationToggle(),
                   SizedBox(height: 15),
                 ],
+                
                 _buildPoliceStationDropdown(),
                 SizedBox(height: 25),
                 
@@ -410,14 +380,16 @@ class _FileFirScreenState extends State<FileFirScreen> {
             onChanged: (value) {
               setState(() {
                 _selectedState = value;
-                _usingLocationBasedSearch = false;
+                _useCurrentLocation = false;
+                _policeStations.clear();
+                _selectedPoliceStation = null;
               });
               if (value != null) {
                 _loadDistricts(value);
               }
             },
             validator: (value) {
-              if (!_usingLocationBasedSearch && (value == null || value.isEmpty)) {
+              if (value == null || value.isEmpty) {
                 return 'Please select a state';
               }
               return null;
@@ -474,13 +446,18 @@ class _FileFirScreenState extends State<FileFirScreen> {
                     );
                   }).toList(),
                   onChanged: _selectedState == null ? null : (value) {
-                    setState(() => _selectedDistrict = value);
-                    if (value != null) {
-                      _loadPoliceStations(value);
+                    setState(() {
+                      _selectedDistrict = value;
+                      _useCurrentLocation = false;
+                      _policeStations.clear();
+                      _selectedPoliceStation = null;
+                    });
+                    if (value != null && !_useCurrentLocation) {
+                      _loadPoliceStationsForDistrict(value);
                     }
                   },
                   validator: (value) {
-                    if (!_usingLocationBasedSearch && (value == null || value.isEmpty)) {
+                    if (value == null || value.isEmpty) {
                       return 'Please select a district';
                     }
                     return null;
@@ -488,6 +465,69 @@ class _FileFirScreenState extends State<FileFirScreen> {
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCurrentLocationToggle() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _useCurrentLocation ? Color(0xFF4ECDC4) : Colors.white.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.my_location,
+            color: _useCurrentLocation ? Color(0xFF4ECDC4) : Colors.white60,
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Use Current Location',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  _useCurrentLocation 
+                    ? 'Finding police stations near your location'
+                    : 'Find police stations near your current location',
+                  style: TextStyle(
+                    color: Colors.white60,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _useCurrentLocation,
+            onChanged: (value) {
+              setState(() {
+                _useCurrentLocation = value;
+                _policeStations.clear();
+                _selectedPoliceStation = null;
+              });
+              
+              if (value) {
+                _loadNearbyPoliceStations();
+              } else if (_selectedDistrict != null) {
+                _loadPoliceStationsForDistrict(_selectedDistrict!);
+              }
+            },
+            activeColor: Color(0xFF4ECDC4),
+          ),
+        ],
+      ),
     );
   }
 
@@ -507,31 +547,20 @@ class _FileFirScreenState extends State<FileFirScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  _usingLocationBasedSearch 
-                    ? '${_policeStations.length} nearby' 
-                    : '${_policeStations.length} in district',
+                  '${_policeStations.length} ${_useCurrentLocation ? "nearby" : "in district"}',
                   style: TextStyle(color: Colors.white, fontSize: 10),
                 ),
               ),
             Spacer(),
-            if (_policeStations.isNotEmpty && _usingLocationBasedSearch)
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green, width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.location_on, size: 12, color: Colors.green),
-                    SizedBox(width: 4),
-                    Text(
-                      'Location-based',
-                      style: TextStyle(color: Colors.green, fontSize: 10),
-                    ),
-                  ],
+            if (_policeStations.isNotEmpty)
+              ElevatedButton.icon(
+                onPressed: () => _showPoliceStationMap(),
+                icon: Icon(Icons.map, size: 16),
+                label: Text('View Map'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF4ECDC4),
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 ),
               ),
           ],
@@ -542,7 +571,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
             color: Colors.white.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: _loadingStations
+          child: (_loadingStations || _loadingLocation)
               ? Container(
                   padding: EdgeInsets.all(16),
                   child: Row(
@@ -557,10 +586,10 @@ class _FileFirScreenState extends State<FileFirScreen> {
                       ),
                       SizedBox(width: 12),
                       Text(
-                        _usingLocationBasedSearch 
-                          ? 'Finding nearby police stations...' 
+                        _loadingLocation 
+                          ? 'Getting your location...' 
                           : 'Loading police stations...',
-                        style: TextStyle(color: Colors.white60)
+                        style: TextStyle(color: Colors.white60),
                       ),
                     ],
                   ),
@@ -569,42 +598,55 @@ class _FileFirScreenState extends State<FileFirScreen> {
                   value: _selectedPoliceStation,
                   dropdownColor: Color(0xFF1A1D3A),
                   style: TextStyle(color: Colors.white),
+                  isExpanded: true, // Fix overflow issue
                   decoration: InputDecoration(
                     prefixIcon: Icon(Icons.local_police, color: Color(0xFF00D4FF)),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
-                  hint: Text('Select Police Station', style: TextStyle(color: Colors.white60)),
+                  hint: Text(
+                    _useCurrentLocation 
+                      ? 'Select nearby police station' 
+                      : 'Select Police Station',
+                    style: TextStyle(color: Colors.white60),
+                  ),
                   items: _policeStations.map((station) {
                     return DropdownMenuItem<String>(
                       value: station['code'],
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            station['name'],
-                            style: TextStyle(fontSize: 14),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (station['distance_km'] != null)
+                      child: Container(
+                        width: double.infinity,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             Text(
-                              '${station['distance_km']} km away',
-                              style: TextStyle(fontSize: 12, color: Colors.white60),
-                            ),
-                          if (station['address'] != null && station['address'].toString().isNotEmpty)
-                            Text(
-                              station['address'].toString(),
-                              style: TextStyle(fontSize: 11, color: Colors.white60),
+                              station['name'],
+                              style: TextStyle(fontSize: 14),
                               overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
-                        ],
+                            if (station['distance_km'] != null)
+                              Text(
+                                '${station['distance_km']} km away',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF4ECDC4)),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            if (station['address'] != null && station['address'].toString().isNotEmpty)
+                              Text(
+                                station['address'].toString(),
+                                style: TextStyle(fontSize: 11, color: Colors.white60),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                          ],
+                        ),
                       ),
                     );
                   }).toList(),
-                  onChanged: (_usingLocationBasedSearch || _selectedDistrict != null) ? (value) {
+                  onChanged: (_selectedDistrict == null && !_useCurrentLocation) ? null : (value) {
                     setState(() => _selectedPoliceStation = value);
-                  } : null,
+                  },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please select a police station';
@@ -613,26 +655,6 @@ class _FileFirScreenState extends State<FileFirScreen> {
                   },
                 ),
         ),
-        
-        // Add map view button if stations are loaded
-        if (_policeStations.isNotEmpty)
-          Container(
-            margin: EdgeInsets.only(top: 12),
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _showPoliceStationMap(),
-              icon: Icon(Icons.map, size: 16),
-              label: Text('View on Map'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF4ECDC4),
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -650,13 +672,41 @@ class _FileFirScreenState extends State<FileFirScreen> {
         padding: EdgeInsets.all(16),
         child: Column(
           children: [
-            Text(
-              _usingLocationBasedSearch ? 'Nearby Police Stations' : 'Police Stations in District',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              children: [
+                Text(
+                  'Police Stations',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Spacer(),
+                if (_useCurrentLocation)
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF4ECDC4).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.my_location, size: 14, color: Color(0xFF4ECDC4)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Near You',
+                          style: TextStyle(color: Color(0xFF4ECDC4), fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close, color: Colors.white),
+                ),
+              ],
             ),
             SizedBox(height: 16),
             Expanded(
@@ -672,6 +722,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
                       title: Text(
                         station['name'],
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -679,12 +730,13 @@ class _FileFirScreenState extends State<FileFirScreen> {
                           if (station['distance_km'] != null)
                             Text(
                               '${station['distance_km']} km away',
-                              style: TextStyle(color: Color(0xFF00D4FF)),
+                              style: TextStyle(color: Color(0xFF00D4FF), fontWeight: FontWeight.w500),
                             ),
                           if (station['address'] != null && station['address'].toString().isNotEmpty)
                             Text(
                               station['address'].toString(),
                               style: TextStyle(color: Colors.white60),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           if (station['district'] != null)
                             Text(
@@ -892,42 +944,49 @@ class _FileFirScreenState extends State<FileFirScreen> {
   void _generateOfficialFIR() async {
     if (_formKey.currentState!.validate()) {
       try {
-        String stateName = 'Unknown State';
-        String districtName = 'Unknown District';
-        String stationName = 'Unknown Police Station';
+        // Validation checks
+        if (!_useCurrentLocation && (_selectedState == null || _selectedDistrict == null || _selectedPoliceStation == null)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Please select all location fields')),
+          );
+          return;
+        }
 
-        if (_selectedState != null && _states.isNotEmpty) {
+        if (_useCurrentLocation && _selectedPoliceStation == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Please select a nearby police station')),
+          );
+          return;
+        }
+
+        // Find selected names with null safety
+        String stateName, districtName, stationName;
+        
+        if (_useCurrentLocation) {
+          // For location-based selection
+          final selectedStation = _policeStations.firstWhere(
+            (p) => p['code'] == _selectedPoliceStation,
+            orElse: () => {'name': 'Unknown Police Station', 'district': 'Unknown', 'state': 'Unknown'}
+          );
+          stateName = selectedStation['state'] ?? 'Unknown State';
+          districtName = selectedStation['district'] ?? 'Unknown District';
+          stationName = selectedStation['name'];
+        } else {
+          // For district-based selection
           stateName = _states.firstWhere(
             (s) => s['code'] == _selectedState,
             orElse: () => {'name': 'Unknown State'}
           )['name'];
-        }
-
-        if (_usingLocationBasedSearch) {
-          // For location-based search, use the selected station's district info
-          if (_selectedPoliceStation != null && _policeStations.isNotEmpty) {
-            final selectedStation = _policeStations.firstWhere(
-              (p) => p['code'] == _selectedPoliceStation,
-              orElse: () => {'name': 'Unknown Police Station', 'district': 'Unknown District'}
-            );
-            stationName = selectedStation['name'];
-            districtName = selectedStation['district'] ?? 'Location-based Area';
-          }
-        } else {
-          // For district-based search
-          if (_selectedDistrict != null && _districts.isNotEmpty) {
-            districtName = _districts.firstWhere(
-              (d) => d['code'] == _selectedDistrict,
-              orElse: () => {'name': 'Unknown District'}
-            )['name'];
-          }
           
-          if (_selectedPoliceStation != null && _policeStations.isNotEmpty) {
-            stationName = _policeStations.firstWhere(
-              (p) => p['code'] == _selectedPoliceStation,
-              orElse: () => {'name': 'Unknown Police Station'}
-            )['name'];
-          }
+          districtName = _districts.firstWhere(
+            (d) => d['code'] == _selectedDistrict,
+            orElse: () => {'name': 'Unknown District'}
+          )['name'];
+          
+          stationName = _policeStations.firstWhere(
+            (p) => p['code'] == _selectedPoliceStation,
+            orElse: () => {'name': 'Unknown Police Station'}
+          )['name'];
         }
         
         // Generate unique FIR ID
@@ -938,12 +997,13 @@ class _FileFirScreenState extends State<FileFirScreen> {
         // Create FIR data
         Map<String, dynamic> firData = {
           'fir_id': firId,
-          'state_code': _selectedState,
+          'state_code': _selectedState ?? 'LOCATION_BASED',
           'state_name': stateName,
-          'district_code': _selectedDistrict,
+          'district_code': _selectedDistrict ?? 'LOCATION_BASED',
           'district_name': districtName,
           'police_station_code': _selectedPoliceStation,
           'police_station_name': stationName,
+          'location_based': _useCurrentLocation,
           'complainant_name': _nameController.text,
           'father_name': _fatherNameController.text,
           'age': _ageController.text,
@@ -959,7 +1019,6 @@ class _FileFirScreenState extends State<FileFirScreen> {
           'accused_details': _accusedDetailsController.text,
           'created_at': DateTime.now().toIso8601String(),
           'status': 'PDF Generated',
-          'location_based': _usingLocationBasedSearch,
         };
         
         print('FIR Data: ${json.encode(firData)}'); // Debug log
