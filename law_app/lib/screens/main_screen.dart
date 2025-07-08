@@ -18,6 +18,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late AnimationController _fabController;
+  String _currentRoute = '/'; // Track current route for SOS button visibility
   
   // Create GlobalKeys for each tab's navigator
   final List<GlobalKey<NavigatorState>> _navigatorKeys = [
@@ -45,7 +46,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   // Handle back button for nested navigation
   Future<bool> _onWillPop() async {
-    final isFirstRouteInCurrentTab = 
+    final isFirstRouteInCurrentTab =
         !await _navigatorKeys[_currentIndex].currentState!.maybePop();
     
     if (isFirstRouteInCurrentTab) {
@@ -56,12 +57,25 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         return false;
       }
     }
+    
     // If we're on the first route of home tab, allow app to close
     return isFirstRouteInCurrentTab;
   }
 
+  // Check if we're on the actual home screen (not sub-screens)
+  bool _isOnHomeScreen() {
+    return _currentIndex == 0 && _currentRoute == '/';
+  }
+
   // Get the appropriate screen for each tab and route
   Widget _getScreenForIndex(int index, RouteSettings routeSettings) {
+    // Update current route when on home tab
+    if (index == 0) {
+      setState(() {
+        _currentRoute = routeSettings.name ?? '/';
+      });
+    }
+    
     switch (index) {
       case 0: // Home Tab
         switch (routeSettings.name) {
@@ -161,7 +175,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             ],
           ),
         ),
-        floatingActionButton: _currentIndex == 0 ? ModernSOSButton() : null,
+        // UPDATED: Show SOS button only on HomeScreen (not on sub-screens)
+        floatingActionButton: _isOnHomeScreen() ? ModernSOSButton() : null,
       ),
     );
   }
@@ -193,7 +208,7 @@ extension MainScreenNavigation on BuildContext {
   void navigateToFindLawyer() {
     Navigator.of(this).pushNamed('/find-lawyer');
   }
-  
+
   void navigateToHome() {
     Navigator.of(this).pushNamedAndRemoveUntil('/', (route) => false);
   }

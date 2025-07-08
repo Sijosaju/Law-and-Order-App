@@ -453,123 +453,136 @@ class _FileFirScreenState extends State<FileFirScreen> {
     );
   }
 
-  Widget _buildPoliceStationDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text('Police Station', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-            if (_policeStations.isNotEmpty)
-              Container(
-                margin: EdgeInsets.only(left: 8),
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Color(0xFF4ECDC4),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${_policeStations.length} nearby',
-                  style: TextStyle(color: Colors.white, fontSize: 10),
-                ),
+Widget _buildPoliceStationDropdown() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Text('Police Station', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+          if (_policeStations.isNotEmpty)
+            Container(
+              margin: EdgeInsets.only(left: 8),
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Color(0xFF4ECDC4),
+                borderRadius: BorderRadius.circular(10),
               ),
-            Spacer(),
-            if (_policeStations.isNotEmpty)
-              ElevatedButton.icon(
-                onPressed: _policeStations.isEmpty ? null : _showPoliceStationMap,
-                icon: Icon(Icons.map, size: 16),
-                label: Text('View Map'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF4ECDC4),
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                ),
+              child: Text(
+                '${_policeStations.length} nearby',
+                style: TextStyle(color: Colors.white, fontSize: 10),
               ),
-          ],
+            ),
+          Spacer(),
+          if (_policeStations.isNotEmpty)
+            ElevatedButton.icon(
+              onPressed: _policeStations.isEmpty ? null : _showPoliceStationMap,
+              icon: Icon(Icons.map, size: 16),
+              label: Text('View Map'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF4ECDC4),
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              ),
+            ),
+        ],
+      ),
+      SizedBox(height: 8),
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
         ),
-        SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: _loadingStations
-              ? Container(
-                  padding: EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(Color(0xFF00D4FF)),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Text('Loading nearby police stations...', style: TextStyle(color: Colors.white60)),
-                    ],
+        child: _loadingStations
+          ? Container(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(Color(0xFF00D4FF)),
+                    ),
                   ),
-                )
-              : DropdownButtonFormField<String>(
-                  value: _selectedPoliceStation,
-                  dropdownColor: Color(0xFF1A1D3A),
-                  style: TextStyle(color: Colors.white),
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    prefixIcon: Icon(Icons.local_police, color: Color(0xFF00D4FF)),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  hint: Text('Select nearby police station', style: TextStyle(color: Colors.white60)),
-                  items: _policeStations.map((station) {
-                    return DropdownMenuItem<String>(
-                      value: station['code'],
-                      child: Container(
-                        width: double.infinity,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              station['name'],
-                              style: TextStyle(fontSize: 14),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                            if (station['distance_km'] != null)
-                              Text(
-                                '${station['distance_km']} km away',
-                                style: TextStyle(fontSize: 12, color: Color(0xFF4ECDC4)),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            if (station['address'] != null && station['address'].toString().isNotEmpty)
-                              Text(
-                                station['address'].toString(),
-                                style: TextStyle(fontSize: 11, color: Colors.white60),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                          ],
+                  SizedBox(width: 12),
+                  Text('Loading nearby police stations...', style: TextStyle(color: Colors.white60)),
+                ],
+              ),
+            )
+          : DropdownButtonFormField<String>(
+              value: _selectedPoliceStation,
+              dropdownColor: Color(0xFF1A1D3A),
+              style: TextStyle(color: Colors.white),
+              isExpanded: true,
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.local_police, color: Color(0xFF00D4FF)),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              hint: Text('Select nearby police station', style: TextStyle(color: Colors.white60)),
+              // FIXED: Show only name when selected, distance in dropdown
+              selectedItemBuilder: (BuildContext context) {
+                return _policeStations.map<Widget>((station) {
+                  return Container(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      station['name'],
+                      style: TextStyle(color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList();
+              },
+              items: _policeStations.map((station) {
+                return DropdownMenuItem<String>(
+                  value: station['code'],
+                  child: Container(
+                    width: double.infinity,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          station['name'],
+                          style: TextStyle(fontSize: 14, color: Colors.white),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedPoliceStation = value);
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a police station';
-                    }
-                    return null;
-                  },
-                ),
-        ),
-      ],
-    );
-  }
+                        if (station['distance_km'] != null)
+                          Text(
+                            '${station['distance_km']} km away',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF4ECDC4)),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        if (station['address'] != null && station['address'].toString().isNotEmpty)
+                          Text(
+                            station['address'].toString(),
+                            style: TextStyle(fontSize: 11, color: Colors.white60),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() => _selectedPoliceStation = value);
+              },
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please select a police station';
+                }
+                return null;
+              },
+            ),
+      ),
+    ],
+  );
+}
 
   /// Mini-map showing all loaded police stations
   Widget _buildStationMap() {
@@ -781,71 +794,78 @@ class _FileFirScreenState extends State<FileFirScreen> {
     );
   }
 
-  Widget _buildDateTimeFields() {
-    return Row(
-      children: [
-        Expanded(
-          child: GestureDetector(
-            onTap: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate: _incidentDate,
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now(),
-              );
-              if (date != null) setState(() => _incidentDate = date);
-            },
-            child: Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.calendar_today, color: Color(0xFF00D4FF)),
-                  SizedBox(width: 12),
-                  Text(
+ Widget _buildDateTimeFields() {
+  return Row(
+    children: [
+      Expanded(
+        child: GestureDetector(
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: _incidentDate,
+              firstDate: DateTime(2020),
+              lastDate: DateTime.now(),
+            );
+            if (date != null) setState(() => _incidentDate = date);
+          },
+          child: Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_today, color: Color(0xFF00D4FF)),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
                     'Date: ${_incidentDate.day}/${_incidentDate.month}/${_incidentDate.year}',
                     style: TextStyle(color: Colors.white),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
-        SizedBox(width: 15),
-        Expanded(
-          child: GestureDetector(
-            onTap: () async {
-              final time = await showTimePicker(
-                context: context,
-                initialTime: _incidentTime,
-              );
-              if (time != null) setState(() => _incidentTime = time);
-            },
-            child: Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.access_time, color: Color(0xFF00D4FF)),
-                  SizedBox(width: 12),
-                  Text(
+      ),
+      SizedBox(width: 15),
+      Expanded(
+        child: GestureDetector(
+          onTap: () async {
+            final time = await showTimePicker(
+              context: context,
+              initialTime: _incidentTime,
+            );
+            if (time != null) setState(() => _incidentTime = time);
+          },
+          child: Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.access_time, color: Color(0xFF00D4FF)),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
                     'Time: ${_incidentTime.format(context)}',
                     style: TextStyle(color: Colors.white),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
+
 
   Widget _buildSubmitButton() {
     return Container(
