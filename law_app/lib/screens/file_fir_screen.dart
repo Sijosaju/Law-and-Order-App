@@ -45,14 +45,12 @@ class _FileFirScreenState extends State<FileFirScreen> {
   
   bool _loadingDistricts = false;
   bool _loadingStations = false;
-  bool _useCurrentLocation = false;
-  bool _loadingLocation = false;
   
   DateTime _incidentDate = DateTime.now();
   TimeOfDay _incidentTime = TimeOfDay.now();
   
   final List<String> _categories = [
-    'Theft', 'Fraud', 'Assault', 'Cybercrime', 'Domestic Violence', 
+    'Theft', 'Fraud', 'Assault', 'Cybercrime', 'Domestic Violence',
     'Chain Snatching', 'Mobile Theft', 'Vehicle Theft', 'Other'
   ];
 
@@ -60,6 +58,8 @@ class _FileFirScreenState extends State<FileFirScreen> {
   void initState() {
     super.initState();
     _loadStates();
+    // Automatically load nearby police stations on screen load
+    _loadNearbyPoliceStations();
   }
 
   Future<void> _loadStates() async {
@@ -92,11 +92,9 @@ class _FileFirScreenState extends State<FileFirScreen> {
     setState(() {
       _loadingDistricts = true;
       _districts.clear();
-      _policeStations.clear();
       _selectedDistrict = null;
-      _selectedPoliceStation = null;
     });
-
+    
     try {
       final response = await http.get(
         Uri.parse('$backendUrl/api/locations/districts/$stateCode'),
@@ -124,7 +122,7 @@ class _FileFirScreenState extends State<FileFirScreen> {
     }
   }
 
-  Future<void> _loadPoliceStationsForDistrict(String districtCode) async {
+  Future<void> _loadNearbyPoliceStations() async {
     setState(() {
       _loadingStations = true;
       _policeStations.clear();
@@ -132,129 +130,86 @@ class _FileFirScreenState extends State<FileFirScreen> {
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('$backendUrl/api/locations/police-stations/$districtCode'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(Duration(seconds: 30));
+      // Check location permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Location permission denied');
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Location permission permanently denied');
+      }
+
+      // Get current position with timeout
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 15),
+      );
+
+      // Call backend API with retry logic
+      int retryCount = 0;
+      const maxRetries = 3;
       
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          _policeStations = data.cast<Map<String, dynamic>>();
-          _loadingStations = false;
-        });
-      } else {
-        throw Exception('Failed to load police stations: ${response.statusCode}');
+      while (retryCount < maxRetries) {
+        try {
+          final response = await http.post(
+            Uri.parse('$backendUrl/api/locations/police-stations-nearby'),
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({
+              'latitude': position.latitude,
+              'longitude': position.longitude,
+            }),
+          ).timeout(Duration(seconds: 30));
+
+          if (response.statusCode == 200) {
+            final List<dynamic> data = json.decode(response.body);
+            setState(() {
+              _policeStations = data.cast<Map<String, dynamic>>();
+              _loadingStations = false;
+            });
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Found ${_policeStations.length} nearby police stations'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            return; // Success, exit retry loop
+          } else {
+            throw Exception('Server error: ${response.statusCode}');
+          }
+        } catch (e) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            throw e; // Re-throw after max retries
+          }
+          await Future.delayed(Duration(seconds: 2)); // Wait before retry
+        }
       }
     } catch (e) {
       setState(() => _loadingStations = false);
-      print('Error loading police stations: $e');
+      
+      String errorMessage = 'Could not get nearby police stations';
+      if (e.toString().contains('permission')) {
+        errorMessage = 'Location permission is required to find nearby police stations';
+      } else if (e.toString().contains('LocationServiceDisabledException')) {
+        errorMessage = 'Please enable location services and try again';
+      } else if (e.toString().contains('TimeoutException')) {
+        errorMessage = 'Request timed out. Please check your internet connection';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to load police stations'),
+          content: Text(errorMessage),
           backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
         ),
       );
     }
   }
-Future<void> _loadNearbyPoliceStations() async {
-  setState(() {
-    _loadingLocation = true;
-    _loadingStations = true;
-    _policeStations.clear();
-    _selectedPoliceStation = null;
-  });
-
-  try {
-    // Check location permissions
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        throw Exception('Location permission denied');
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      throw Exception('Location permission permanently denied');
-    }
-
-    // Get current position with timeout
-    Position position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-      timeLimit: Duration(seconds: 15),
-    );
-
-    setState(() => _loadingLocation = false);
-
-    // Call backend API with retry logic
-    int retryCount = 0;
-    const maxRetries = 3;
-    
-    while (retryCount < maxRetries) {
-      try {
-        final response = await http.post(
-          Uri.parse('$backendUrl/api/locations/police-stations-nearby'),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode({
-            'latitude': position.latitude,
-            'longitude': position.longitude,
-            'radius': 20
-          }),
-        ).timeout(Duration(seconds: 30));
-
-        if (response.statusCode == 200) {
-          final List data = json.decode(response.body);
-          setState(() {
-            _policeStations = data.cast<Map<String, dynamic>>();
-            _loadingStations = false;
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Found ${_policeStations.length} nearby police stations'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          return; // Success, exit retry loop
-        } else {
-          throw Exception('Server error: ${response.statusCode}');
-        }
-      } catch (e) {
-        retryCount++;
-        if (retryCount >= maxRetries) {
-          throw e; // Re-throw after max retries
-        }
-        await Future.delayed(Duration(seconds: 2)); // Wait before retry
-      }
-    }
-
-  } catch (e) {
-    setState(() {
-      _loadingLocation = false;
-      _loadingStations = false;
-      _useCurrentLocation = false;
-    });
-
-    String errorMessage = 'Could not get nearby police stations';
-    if (e.toString().contains('permission')) {
-      errorMessage = 'Location permission is required to find nearby police stations';
-    } else if (e.toString().contains('LocationServiceDisabledException')) {
-      errorMessage = 'Please enable location services and try again';
-    } else if (e.toString().contains('TimeoutException')) {
-      errorMessage = 'Request timed out. Please check your internet connection';
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(errorMessage),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 5),
-      ),
-    );
-  }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -292,7 +247,7 @@ Future<void> _loadNearbyPoliceStations() async {
                   style: TextStyle(color: Colors.white60, fontSize: 14),
                 ),
                 SizedBox(height: 30),
-                
+
                 // Location Details Section
                 _buildSectionHeader('Location Details'),
                 _buildStateDropdown(),
@@ -300,15 +255,36 @@ Future<void> _loadNearbyPoliceStations() async {
                 _buildDistrictDropdown(),
                 SizedBox(height: 15),
                 
-                // Current Location Toggle - Placed after district selection
-                if (_selectedDistrict != null) ...[
-                  _buildCurrentLocationToggle(),
-                  SizedBox(height: 15),
-                ],
-                
+                // Police Station Section - Always shows nearby stations
+                _buildSectionHeader('Police Station Selection'),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green[50]?.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Color(0xFF4ECDC4).withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.location_on, color: Color(0xFF4ECDC4)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Police stations are automatically loaded based on your current location',
+                          style: TextStyle(color: Color(0xFF4ECDC4)),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.refresh, color: Color(0xFF4ECDC4)),
+                        onPressed: _loadNearbyPoliceStations,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 15),
                 _buildPoliceStationDropdown(),
                 SizedBox(height: 25),
-                
+
                 // Personal Details Section
                 _buildSectionHeader('Complainant Details'),
                 _buildInputField('Full Name', _nameController, Icons.person),
@@ -327,7 +303,7 @@ Future<void> _loadNearbyPoliceStations() async {
                 SizedBox(height: 15),
                 _buildInputField('Phone Number', _phoneController, Icons.phone),
                 SizedBox(height: 25),
-                
+
                 // Incident Details Section
                 _buildSectionHeader('Incident Details'),
                 _buildDropdownField('Category of Offence', _selectedCategory, _categories, (value) {
@@ -344,7 +320,7 @@ Future<void> _loadNearbyPoliceStations() async {
                 SizedBox(height: 15),
                 _buildInputField('Accused Person Details (if known)', _accusedDetailsController, Icons.person_search, maxLines: 3),
                 SizedBox(height: 30),
-                
+
                 _buildSubmitButton(),
               ],
             ),
@@ -398,9 +374,8 @@ Future<void> _loadNearbyPoliceStations() async {
             onChanged: (value) {
               setState(() {
                 _selectedState = value;
-                _useCurrentLocation = false;
-                _policeStations.clear();
-                _selectedPoliceStation = null;
+                _districts.clear();
+                _selectedDistrict = null;
               });
               if (value != null) {
                 _loadDistricts(value);
@@ -439,7 +414,7 @@ Future<void> _loadNearbyPoliceStations() async {
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00D4FF)),
+                          valueColor: AlwaysStoppedAnimation(Color(0xFF00D4FF)),
                         ),
                       ),
                       SizedBox(width: 12),
@@ -464,15 +439,7 @@ Future<void> _loadNearbyPoliceStations() async {
                     );
                   }).toList(),
                   onChanged: _selectedState == null ? null : (value) {
-                    setState(() {
-                      _selectedDistrict = value;
-                      _useCurrentLocation = false;
-                      _policeStations.clear();
-                      _selectedPoliceStation = null;
-                    });
-                    if (value != null && !_useCurrentLocation) {
-                      _loadPoliceStationsForDistrict(value);
-                    }
+                    setState(() => _selectedDistrict = value);
                   },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -483,69 +450,6 @@ Future<void> _loadNearbyPoliceStations() async {
                 ),
         ),
       ],
-    );
-  }
-
-  Widget _buildCurrentLocationToggle() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _useCurrentLocation ? Color(0xFF4ECDC4) : Colors.white.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.my_location,
-            color: _useCurrentLocation ? Color(0xFF4ECDC4) : Colors.white60,
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Use Current Location',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  _useCurrentLocation 
-                    ? 'Finding police stations near your location'
-                    : 'Find police stations near your current location',
-                  style: TextStyle(
-                    color: Colors.white60,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: _useCurrentLocation,
-            onChanged: (value) {
-              setState(() {
-                _useCurrentLocation = value;
-                _policeStations.clear();
-                _selectedPoliceStation = null;
-              });
-              
-              if (value) {
-                _loadNearbyPoliceStations();
-              } else if (_selectedDistrict != null) {
-                _loadPoliceStationsForDistrict(_selectedDistrict!);
-              }
-            },
-            activeColor: Color(0xFF4ECDC4),
-          ),
-        ],
-      ),
     );
   }
 
@@ -565,7 +469,7 @@ Future<void> _loadNearbyPoliceStations() async {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  '${_policeStations.length} ${_useCurrentLocation ? "nearby" : "in district"}',
+                  '${_policeStations.length} nearby',
                   style: TextStyle(color: Colors.white, fontSize: 10),
                 ),
               ),
@@ -589,7 +493,7 @@ Future<void> _loadNearbyPoliceStations() async {
             color: Colors.white.withOpacity(0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: (_loadingStations || _loadingLocation)
+          child: _loadingStations
               ? Container(
                   padding: EdgeInsets.all(16),
                   child: Row(
@@ -599,16 +503,11 @@ Future<void> _loadNearbyPoliceStations() async {
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00D4FF)),
+                          valueColor: AlwaysStoppedAnimation(Color(0xFF00D4FF)),
                         ),
                       ),
                       SizedBox(width: 12),
-                      Text(
-                        _loadingLocation 
-                          ? 'Getting your location...' 
-                          : 'Loading police stations...',
-                        style: TextStyle(color: Colors.white60),
-                      ),
+                      Text('Loading nearby police stations...', style: TextStyle(color: Colors.white60)),
                     ],
                   ),
                 )
@@ -616,18 +515,13 @@ Future<void> _loadNearbyPoliceStations() async {
                   value: _selectedPoliceStation,
                   dropdownColor: Color(0xFF1A1D3A),
                   style: TextStyle(color: Colors.white),
-                  isExpanded: true, // Fix overflow issue
+                  isExpanded: true,
                   decoration: InputDecoration(
                     prefixIcon: Icon(Icons.local_police, color: Color(0xFF00D4FF)),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   ),
-                  hint: Text(
-                    _useCurrentLocation 
-                      ? 'Select nearby police station' 
-                      : 'Select Police Station',
-                    style: TextStyle(color: Colors.white60),
-                  ),
+                  hint: Text('Select nearby police station', style: TextStyle(color: Colors.white60)),
                   items: _policeStations.map((station) {
                     return DropdownMenuItem<String>(
                       value: station['code'],
@@ -662,7 +556,7 @@ Future<void> _loadNearbyPoliceStations() async {
                       ),
                     );
                   }).toList(),
-                  onChanged: (_selectedDistrict == null && !_useCurrentLocation) ? null : (value) {
+                  onChanged: (value) {
                     setState(() => _selectedPoliceStation = value);
                   },
                   validator: (value) {
@@ -676,71 +570,64 @@ Future<void> _loadNearbyPoliceStations() async {
       ],
     );
   }
+
   /// Mini-map showing all loaded police stations
-Widget _buildStationMap() {
-  if (_policeStations.isEmpty) return const SizedBox.shrink();
+  Widget _buildStationMap() {
+    if (_policeStations.isEmpty) return const SizedBox.shrink();
+    
+    final first = _policeStations.first;
+    final markers = _policeStations.map((s) => Marker(
+      point: LatLng(s['latitude'], s['longitude']),
+      width: 40,
+      height: 40,
+      child: const Icon(Icons.local_police, size: 30, color: Color(0xFF4ECDC4)),
+    )).toList();
 
-  final first = _policeStations.first;
-
-  // 1️⃣  use `child:` instead of `builder:`
-  final markers = _policeStations.map((s) => Marker(
-        point: LatLng(s['latitude'], s['longitude']),
-        width: 40,
-        height: 40,
-        child: const Icon(Icons.local_police,      // ← here
-            size: 30, color: Color(0xFF4ECDC4)),
-      )).toList();
-
-  // 2️⃣  centre/zoom fields were renamed in v6
-  return FlutterMap(
-    options: MapOptions(
-      initialCenter: LatLng(first['latitude'], first['longitude']),
-      initialZoom: 11,
-    ),
-    children: [
-       TileLayer(
-        urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        subdomains: ['a', 'b', 'c'],
-        userAgentPackageName: 'com.example.law_app',
+    return FlutterMap(
+      options: MapOptions(
+        initialCenter: LatLng(first['latitude'], first['longitude']),
+        initialZoom: 11,
       ),
-      MarkerLayer(markers: markers),   // 3️⃣  markers already a List<Marker>
-    ],
-  );
-}
+      children: [
+        TileLayer(
+          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          subdomains: ['a', 'b', 'c'],
+          userAgentPackageName: 'com.example.law_app',
+        ),
+        MarkerLayer(markers: markers),
+      ],
+    );
+  }
 
-
-
-void _showPoliceStationMap() {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: const Color(0xFF1A1D3A),
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (context) => DraggableScrollableSheet(
-      expand: false,
-      builder: (context, scrollController) => SafeArea(
-        child: Column(
-          children: [
-            // ── Header ───────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  const Text(
-                    'Police Stations',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+  void _showPoliceStationMap() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1D3A),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        builder: (context, scrollController) => SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Nearby Police Stations',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  if (_useCurrentLocation)
+                    const Spacer(),
                     Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFF4ECDC4).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
@@ -748,88 +635,76 @@ void _showPoliceStationMap() {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(Icons.my_location,
-                              size: 14, color: Color(0xFF4ECDC4)),
+                          Icon(Icons.my_location, size: 14, color: Color(0xFF4ECDC4)),
                           SizedBox(width: 4),
-                          Text('Near You',
-                              style: TextStyle(
-                                  color: Color(0xFF4ECDC4), fontSize: 12)),
+                          Text('Near You', style: TextStyle(color: Color(0xFF4ECDC4), fontSize: 12)),
                         ],
                       ),
                     ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            // ── Mini-map ─────────────────────────────────────────
-            SizedBox(height: 200, child: _buildStationMap()),
-            const SizedBox(height: 8),
-            // ── Scrollable list ─────────────────────────────────
-            Expanded(
-              child: ListView.builder(
-                controller: scrollController,
-                itemCount: _policeStations.length,
-                itemBuilder: (context, index) {
-                  final station = _policeStations[index];
-                  return Card(
-                    color: Colors.white.withOpacity(0.1),
-                    margin: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 4),
-                    child: ListTile(
-                      leading: const Icon(Icons.local_police,
-                          color: Color(0xFF4ECDC4)),
-                      title: Text(
-                        station['name'],
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w500),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (station['distance_km'] != null)
-                            Text('${station['distance_km']} km away',
-                                style: const TextStyle(
-                                    color: Color(0xFF00D4FF),
-                                    fontWeight: FontWeight.w500)),
-                          if (station['address'] != null &&
-                              station['address'].toString().isNotEmpty)
-                            Text(station['address'],
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.white60)),
-                          if (station['district'] != null)
-                            Text('District: ${station['district']}',
-                                style: const TextStyle(
-                                    fontSize: 12, color: Colors.white60)),
-                        ],
-                      ),
-                      trailing: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4ECDC4),
-                          foregroundColor: Colors.white,
+              // Mini-map
+              SizedBox(height: 200, child: _buildStationMap()),
+              const SizedBox(height: 8),
+              // Scrollable list
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  itemCount: _policeStations.length,
+                  itemBuilder: (context, index) {
+                    final station = _policeStations[index];
+                    return Card(
+                      color: Colors.white.withOpacity(0.1),
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      child: ListTile(
+                        leading: const Icon(Icons.local_police, color: Color(0xFF4ECDC4)),
+                        title: Text(
+                          station['name'],
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          setState(() => _selectedPoliceStation =
-                              station['code']);
-                        },
-                        child: const Text('Select'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (station['distance_km'] != null)
+                              Text('${station['distance_km']} km away',
+                                  style: const TextStyle(color: Color(0xFF00D4FF), fontWeight: FontWeight.w500)),
+                            if (station['address'] != null && station['address'].toString().isNotEmpty)
+                              Text(station['address'],
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: Colors.white60)),
+                            if (station['district'] != null)
+                              Text('District: ${station['district']}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.white60)),
+                          ],
+                        ),
+                        trailing: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF4ECDC4),
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            setState(() => _selectedPoliceStation = station['code']);
+                          },
+                          child: const Text('Select'),
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
-
+    );
+  }
 
   Widget _buildInputField(String label, TextEditingController controller, IconData icon, {int maxLines = 1}) {
     return Column(
@@ -1007,65 +882,43 @@ void _showPoliceStationMap() {
     if (_formKey.currentState!.validate()) {
       try {
         // Validation checks
-        if (!_useCurrentLocation && (_selectedState == null || _selectedDistrict == null || _selectedPoliceStation == null)) {
+        if (_selectedState == null || _selectedDistrict == null || _selectedPoliceStation == null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Please select all location fields')),
           );
           return;
         }
 
-        if (_useCurrentLocation && _selectedPoliceStation == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please select a nearby police station')),
-          );
-          return;
-        }
-
         // Find selected names with null safety
-        String stateName, districtName, stationName;
+        String stateName = _states.firstWhere(
+          (s) => s['code'] == _selectedState,
+          orElse: () => {'name': 'Unknown State'}
+        )['name'];
         
-        if (_useCurrentLocation) {
-          // For location-based selection
-          final selectedStation = _policeStations.firstWhere(
-            (p) => p['code'] == _selectedPoliceStation,
-            orElse: () => {'name': 'Unknown Police Station', 'district': 'Unknown', 'state': 'Unknown'}
-          );
-          stateName = selectedStation['state'] ?? 'Unknown State';
-          districtName = selectedStation['district'] ?? 'Unknown District';
-          stationName = selectedStation['name'];
-        } else {
-          // For district-based selection
-          stateName = _states.firstWhere(
-            (s) => s['code'] == _selectedState,
-            orElse: () => {'name': 'Unknown State'}
-          )['name'];
-          
-          districtName = _districts.firstWhere(
-            (d) => d['code'] == _selectedDistrict,
-            orElse: () => {'name': 'Unknown District'}
-          )['name'];
-          
-          stationName = _policeStations.firstWhere(
-            (p) => p['code'] == _selectedPoliceStation,
-            orElse: () => {'name': 'Unknown Police Station'}
-          )['name'];
-        }
+        String districtName = _districts.firstWhere(
+          (d) => d['code'] == _selectedDistrict,
+          orElse: () => {'name': 'Unknown District'}
+        )['name'];
         
+        String stationName = _policeStations.firstWhere(
+          (p) => p['code'] == _selectedPoliceStation,
+          orElse: () => {'name': 'Unknown Police Station'}
+        )['name'];
+
         // Generate unique FIR ID
         String firId = 'FIR${DateTime.now().millisecondsSinceEpoch}';
-        
-        print('Generated FIR ID: $firId'); // Debug log
-        
+        print('Generated FIR ID: $firId');
+
         // Create FIR data
         Map<String, dynamic> firData = {
           'fir_id': firId,
-          'state_code': _selectedState ?? 'LOCATION_BASED',
+          'state_code': _selectedState,
           'state_name': stateName,
-          'district_code': _selectedDistrict ?? 'LOCATION_BASED',
+          'district_code': _selectedDistrict,
           'district_name': districtName,
           'police_station_code': _selectedPoliceStation,
           'police_station_name': stationName,
-          'location_based': _useCurrentLocation,
+          'location_based': true, // Always true now
           'complainant_name': _nameController.text,
           'father_name': _fatherNameController.text,
           'age': _ageController.text,
@@ -1082,18 +935,18 @@ void _showPoliceStationMap() {
           'created_at': DateTime.now().toIso8601String(),
           'status': 'PDF Generated',
         };
-        
-        print('FIR Data: ${json.encode(firData)}'); // Debug log
-        
+
+        print('FIR Data: ${json.encode(firData)}');
+
         // Save to backend FIRST
         await _saveFIRToBackend(firData);
-        
+
         // Generate PDF
         await _generatePDF(firData);
-        
+
         // Show success dialog
         _showSuccessDialog(firId);
-        
+
       } catch (e) {
         print('Error in FIR generation: $e');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1110,10 +963,10 @@ void _showPoliceStationMap() {
         headers: {'Content-Type': 'application/json'},
         body: json.encode(firData),
       ).timeout(Duration(seconds: 30));
-      
+
       print('Save response status: ${response.statusCode}');
       print('Save response body: ${response.body}');
-      
+
       if (response.statusCode == 200) {
         print('FIR saved to backend successfully');
       } else {
@@ -1126,7 +979,7 @@ void _showPoliceStationMap() {
 
   Future<void> _generatePDF(Map<String, dynamic> firData) async {
     final pdf = pw.Document();
-    
+
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -1152,7 +1005,7 @@ void _showPoliceStationMap() {
                 ],
               ),
             ),
-            
+
             // FIR Details Table
             pw.Table(
               border: pw.TableBorder.all(),
@@ -1165,16 +1018,14 @@ void _showPoliceStationMap() {
                 _buildPdfRow('Time', firData['incident_time']),
               ],
             ),
-            
             pw.SizedBox(height: 20),
-            
+
             // Complainant Details
             pw.Text(
               'COMPLAINANT DETAILS',
               style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 10),
-            
             pw.Table(
               border: pw.TableBorder.all(),
               children: [
@@ -1186,16 +1037,14 @@ void _showPoliceStationMap() {
                 _buildPdfRow('Phone Number', firData['phone']),
               ],
             ),
-            
             pw.SizedBox(height: 20),
-            
+
             // Incident Details
             pw.Text(
               'INCIDENT DETAILS',
               style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
             ),
             pw.SizedBox(height: 10),
-            
             pw.Table(
               border: pw.TableBorder.all(),
               children: [
@@ -1205,9 +1054,8 @@ void _showPoliceStationMap() {
                 _buildPdfRow('Place of Occurrence', firData['incident_location']),
               ],
             ),
-            
             pw.SizedBox(height: 15),
-            
+
             // Description
             pw.Container(
               width: double.infinity,
@@ -1216,16 +1064,15 @@ void _showPoliceStationMap() {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('Brief Description of Incident:', 
+                  pw.Text('Brief Description of Incident:',
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 5),
                   pw.Text(firData['description']),
                 ],
               ),
             ),
-            
             pw.SizedBox(height: 15),
-            
+
             // Property Details
             if (firData['property_details'].toString().isNotEmpty)
               pw.Container(
@@ -1235,16 +1082,15 @@ void _showPoliceStationMap() {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Property Involved:', 
+                    pw.Text('Property Involved:',
                         style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                     pw.SizedBox(height: 5),
                     pw.Text(firData['property_details']),
                   ],
                 ),
               ),
-            
             pw.SizedBox(height: 15),
-            
+
             // Accused Details
             if (firData['accused_details'].toString().isNotEmpty)
               pw.Container(
@@ -1254,16 +1100,15 @@ void _showPoliceStationMap() {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Details of Accused Person(s):', 
+                    pw.Text('Details of Accused Person(s):',
                         style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                     pw.SizedBox(height: 5),
                     pw.Text(firData['accused_details']),
                   ],
                 ),
               ),
-            
             pw.SizedBox(height: 30),
-            
+
             // Signature Section
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -1288,9 +1133,8 @@ void _showPoliceStationMap() {
                 ),
               ],
             ),
-            
             pw.SizedBox(height: 20),
-            
+
             // Footer
             pw.Center(
               child: pw.Text(
@@ -1302,7 +1146,7 @@ void _showPoliceStationMap() {
         },
       ),
     );
-    
+
     // Save and share PDF
     await Printing.sharePdf(
       bytes: await pdf.save(),
@@ -1338,7 +1182,7 @@ void _showPoliceStationMap() {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop(); // Only close the dialog - fixes white screen issue
+              Navigator.of(context).pop();
             },
             child: Text('OK', style: TextStyle(color: Color(0xFF00D4FF))),
           ),
@@ -1362,5 +1206,4 @@ void _showPoliceStationMap() {
     super.dispose();
   }
 }
-
 
